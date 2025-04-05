@@ -30,26 +30,50 @@
             </div>
             
             <div class="mb-3">
+                <label for="content" class="form-label">Memory Content</label>
+                <textarea class="form-control" id="content" name="content" rows="4" 
+                          placeholder="Enter the content of this memory..."></textarea>
+                <div class="form-text">
+                    Enter text content to be stored in this memory.
+                </div>
+            </div>
+            
+            {% if embedding_model_available %}
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="useModelEmbeddings" name="use_model_embeddings" value="true">
+                <label class="form-check-label" for="useModelEmbeddings">
+                    Generate embeddings from content using multilingual-e5-large-instruct model
+                </label>
+                <div class="form-text">
+                    When checked, the model will generate embeddings from the content instead of using manual embeddings.
+                </div>
+            </div>
+            {% endif %}
+            
+            <div id="manualEmbeddingSection" class="mb-3 {% if embedding_model_available %}d-none{% endif %}">
                 <label for="embeddings" class="form-label">Vector Embeddings</label>
                 <textarea class="form-control font-monospace" id="embeddings" name="embeddings" rows="3" 
                           placeholder="[0.1, 0.2, 0.3, 0.4]"></textarea>
                 <div class="form-text">
                     Enter as JSON array or space-separated numbers. Leave blank to use default embeddings.
                 </div>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Embedding Tools</label>
-                <div class="btn-group w-100">
-                    <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(4)">
-                        Random (4D)
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(16)">
-                        Random (16D)
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(64)">
-                        Random (64D)
-                    </button>
+                
+                <div class="mt-2">
+                    <label class="form-label">Embedding Tools</label>
+                    <div class="btn-group w-100">
+                        <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(4)">
+                            Random (4D)
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(16)">
+                            Random (16D)
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(64)">
+                            Random (64D)
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(384)">
+                            Random (384D)
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -77,5 +101,17 @@
         }
         document.getElementById('embeddings').value = JSON.stringify(embeddings);
     }
+    
+    {% if embedding_model_available %}
+    // Toggle between model-generated and manual embeddings
+    document.getElementById('useModelEmbeddings').addEventListener('change', function() {
+        const manualSection = document.getElementById('manualEmbeddingSection');
+        if (this.checked) {
+            manualSection.classList.add('d-none');
+        } else {
+            manualSection.classList.remove('d-none');
+        }
+    });
+    {% endif %}
 </script>
 {% endblock %}
