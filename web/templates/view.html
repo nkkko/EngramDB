@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}EngramDB - View Memory{% endblock %}
+
+{% block header %}{{ memory.title }}{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <div>
+            <span class="badge bg-secondary">{{ memory.category }}</span>
+            <span class="badge bg-info ms-2">Importance: {{ "%.1f"|format(memory.importance) }}</span>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('edit_memory', memory_id=memory.id) }}" class="btn btn-sm btn-outline-primary">
+                Edit
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-danger" 
+                    onclick="confirmDelete('{{ memory.id }}', '{{ memory.title }}')">
+                Delete
+            </button>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- Memory ID and basic info -->
+        <h6 class="card-subtitle mb-3 text-muted">Memory ID: {{ memory.id }}</h6>
+        
+        <!-- Tabs for different views -->
+        <ul class="nav nav-tabs" id="memoryTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="details-tab" data-bs-toggle="tab" 
+                        data-bs-target="#details" type="button" role="tab" aria-selected="true">
+                    Details
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="embeddings-tab" data-bs-toggle="tab" 
+                        data-bs-target="#embeddings" type="button" role="tab" aria-selected="false">
+                    Embeddings
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="similar-tab" data-bs-toggle="tab" 
+                        data-bs-target="#similar" type="button" role="tab" aria-selected="false">
+                    Find Similar
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content p-3 border border-top-0 rounded-bottom" id="memoryTabsContent">
+            <!-- Details Tab -->
+            <div class="tab-pane fade show active" id="details" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Basic Information</h5>
+                        <table class="table table-striped">
+                            <tr>
+                                <th>Title</th>
+                                <td>{{ memory.title }}</td>
+                            </tr>
+                            <tr>
+                                <th>Category</th>
+                                <td>{{ memory.category }}</td>
+                            </tr>
+                            <tr>
+                                <th>Importance</th>
+                                <td>{{ memory.importance }}</td>
+                            </tr>
+                            <tr>
+                                <th>Embedding Size</th>
+                                <td>{{ memory.embeddings|length }} dimensions</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5>Additional Attributes</h5>
+                        {% if memory.attributes %}
+                            <table class="table table-striped">
+                                {% for key, value in memory.attributes.items() %}
+                                    <tr>
+                                        <th>{{ key }}</th>
+                                        <td>{{ value }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        {% else %}
+                            <div class="alert alert-info">No additional attributes</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Embeddings Tab -->
+            <div class="tab-pane fade" id="embeddings" role="tabpanel">
+                <h5>Vector Embeddings</h5>
+                <div class="alert alert-secondary">
+                    <p>Vector Size: {{ memory.embeddings|length }} dimensions</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        Embedding Values
+                        <button class="btn btn-sm btn-outline-secondary float-end" 
+                                onclick="copyEmbeddings()">
+                            Copy
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <pre class="mb-0" id="embeddingValues">{{ memory.embeddings|tojson }}</pre>
+                    </div>
+                </div>
+                
+                {% if memory.embeddings|length <= 20 %}
+                    <div class="mt-4">
+                        <h5>Vector Visualization</h5>
+                        <div class="vector-vis">
+                            {% for val in memory.embeddings %}
+                                <div class="vector-bar" style="width: {{ (val + 1) * 50 }}%; 
+                                                              background-color: {{ 'rgba(40, 167, 69, 0.7)' if val >= 0 else 'rgba(220, 53, 69, 0.7)' }};">
+                                    <span>{{ "%.4f"|format(val) }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Similar Memories Tab -->
+            <div class="tab-pane fade" id="similar" role="tabpanel">
+                <h5>Find Similar Memories</h5>
+                <form id="similarForm" class="mb-3">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-auto">
+                            <label for="similarThreshold" class="col-form-label">Similarity Threshold:</label>
+                        </div>
+                        <div class="col-auto">
+                            <input type="number" id="similarThreshold" class="form-control" 
+                                   min="0" max="1" step="0.1" value="0.5">
+                        </div>
+                        <div class="col-auto">
+                            <label for="similarLimit" class="col-form-label">Max Results:</label>
+                        </div>
+                        <div class="col-auto">
+                            <input type="number" id="similarLimit" class="form-control" 
+                                   min="1" max="20" value="5">
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">
+                                Find Similar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="similarResults" class="mt-3">
+                    <div class="alert alert-info">
+                        Click "Find Similar" to search for memories using the current embeddings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-footer">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            Back to List
+        </a>
+    </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete "<span id="deleteMemoryTitle"></span>"?
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .vector-vis {
+        width: 100%;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    .vector-bar {
+        height: 30px;
+        margin: 3px 0;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        padding-left: 10px;
+        color: white;
+        font-size: 0.8rem;
+        transition: width 0.3s;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmDelete(memoryId, memoryTitle) {
+        document.getElementById('deleteMemoryTitle').textContent = memoryTitle;
+        document.getElementById('deleteForm').action = "{{ url_for('delete_memory', memory_id='MEMORY_ID') }}".replace('MEMORY_ID', memoryId);
+        
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+    
+    function copyEmbeddings() {
+        const embedText = document.getElementById('embeddingValues').textContent;
+        navigator.clipboard.writeText(embedText)
+            .then(() => alert('Embeddings copied to clipboard!'))
+            .catch(err => console.error('Error copying text: ', err));
+    }
+    
+    // Handle similar search
+    document.getElementById('similarForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const threshold = document.getElementById('similarThreshold').value;
+        const limit = document.getElementById('similarLimit').value;
+        const embeddings = {{ memory.embeddings|tojson }};
+        
+        // Show loading indicator
+        document.getElementById('similarResults').innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><p>Searching...</p></div>';
+        
+        // Make a fetch request to get similar memories
+        fetch('/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'search_type': 'vector',
+                'query_vector': JSON.stringify(embeddings),
+                'threshold': threshold,
+                'limit': limit
+            })
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Extract just the results table from the response
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const resultsTable = doc.querySelector('#search-results');
+            
+            if (resultsTable) {
+                document.getElementById('similarResults').innerHTML = resultsTable.outerHTML;
+            } else {
+                document.getElementById('similarResults').innerHTML = '<div class="alert alert-warning">No results found</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('similarResults').innerHTML = '<div class="alert alert-danger">Error searching for similar memories</div>';
+        });
+    });
+</script>
+{% endblock %}

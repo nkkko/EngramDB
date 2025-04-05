@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}EngramDB - Edit Memory{% endblock %}
+
+{% block header %}Edit Memory: {{ memory.title }}{% endblock %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('edit_memory', memory_id=memory.id) }}">
+            <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" 
+                       value="{{ memory.title }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="category" class="form-label">Category</label>
+                <input type="text" class="form-control" id="category" name="category" 
+                       value="{{ memory.category }}" placeholder="e.g., work, personal, research">
+            </div>
+            
+            <div class="mb-3">
+                <label for="importance" class="form-label">Importance (0.0 - 1.0)</label>
+                <input type="range" class="form-range" min="0" max="1" step="0.1" id="importance" 
+                       name="importance" value="{{ memory.importance }}">
+                <div class="d-flex justify-content-between">
+                    <span>Low</span>
+                    <span id="importanceValue">{{ memory.importance }}</span>
+                    <span>High</span>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="embeddings" class="form-label">Vector Embeddings</label>
+                <textarea class="form-control font-monospace" id="embeddings" name="embeddings" rows="3">{{ memory.embeddings|tojson }}</textarea>
+                <div class="form-text">
+                    Edit as JSON array or space-separated numbers. Leave unchanged to keep current embeddings.
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Embedding Tools</label>
+                <div class="btn-group w-100">
+                    <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings({{ memory.embeddings|length }})">
+                        Random (same dimensions)
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetEmbeddings()">
+                        Reset to Original
+                    </button>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('view_memory', memory_id=memory.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Original embeddings for reset function
+    const originalEmbeddings = {{ memory.embeddings|tojson }};
+    
+    // Update the importance value display
+    document.getElementById('importance').addEventListener('input', function() {
+        document.getElementById('importanceValue').textContent = this.value;
+    });
+    
+    // Generate random embeddings with specified dimensions
+    function generateRandomEmbeddings(dimensions) {
+        let embeddings = [];
+        for (let i = 0; i < dimensions; i++) {
+            embeddings.push(parseFloat((Math.random() * 2 - 1).toFixed(4)));
+        }
+        document.getElementById('embeddings').value = JSON.stringify(embeddings);
+    }
+    
+    // Reset to original embeddings
+    function resetEmbeddings() {
+        document.getElementById('embeddings').value = JSON.stringify(originalEmbeddings);
+    }
+</script>
+{% endblock %}

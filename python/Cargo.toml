@@ -1,0 +1,17 @@
+[package]
+name = "engramdb-py"
+version = "0.1.0"
+edition = "2021"
+description = "Python bindings for EngramDB database"
+authors = ["Author <author@example.com>"]
+license = "MIT"
+
+[lib]
+name = "_engramdb"
+crate-type = ["cdylib"]
+
+[dependencies]
+engramdb = { path = ".." }
+pyo3 = { version = "0.19", features = ["extension-module"] }
+numpy = "0.19"
+uuid = { version = "1.3", features = ["v4", "serde"] }

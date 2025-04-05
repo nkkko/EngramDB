@@ -1,0 +1,25 @@
+[package]
+name = "engramdb"
+version = "0.1.0"
+edition = "2021"
+description = "EngramDB - A specialized database for agent memory systems"
+authors = ["Nikola <nikola@example.com>"]
+license = "MIT"
+
+[dependencies]
+uuid = { version = "1.5", features = ["v4", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+chrono = "0.4"
+log = "0.4"
+env_logger = "0.10"
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1.2"
+tempfile = "3.8"
+
+[[bench]]
+name = "vector_search"
+harness = false
