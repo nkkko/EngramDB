@@ -23,66 +23,64 @@
     "name": "Get Started",
     "url": "/getting-started"
   },
-  "navigation": {
-    "anchors": [
-      {
-        "anchor": "Documentation",
-        "icon": "book",
-        "href": "getting-started"
-      },
-      {
-        "anchor": "API Reference",
-        "icon": "code",
-        "href": "api-reference/memory-node"
-      },
-      {
-        "anchor": "Advanced Topics",
-        "icon": "lightbulb",
-        "href": "advanced-topics/temporal-layers"
-      }
-    ],
-    "groups": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "introduction",
-          "getting-started",
-          "core-concepts"
-        ]
-      },
-      {
-        "group": "API Reference",
-        "pages": [
-          "api-reference/memory-node",
-          "api-reference/database",
-          "api-reference/query",
-          "api-reference/vector-index"
-        ]
-      },
-      {
-        "group": "Examples",
-        "pages": [
-          "examples/rust-examples",
-          "examples/python-examples"
-        ]
-      },
-      {
-        "group": "Advanced Topics",
-        "pages": [
-          "advanced-topics/temporal-layers",
-          "advanced-topics/connections",
-          "advanced-topics/storage-engines"
-        ]
-      },
-      {
-        "group": "Contributing",
-        "pages": [
-          "contributing"
-        ]
-      }
-    ]
-  },
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "index",
+        "introduction",
+        "getting-started",
+        "core-concepts"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/memory-node",
+        "api-reference/database",
+        "api-reference/query",
+        "api-reference/vector-index"
+      ]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/rust-examples",
+        "examples/python-examples"
+      ]
+    },
+    {
+      "group": "Advanced Topics",
+      "pages": [
+        "advanced-topics/temporal-layers",
+        "advanced-topics/connections",
+        "advanced-topics/storage-engines"
+      ]
+    },
+    {
+      "group": "Contributing",
+      "pages": [
+        "contributing"
+      ]
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Documentation",
+      "icon": "book",
+      "url": "getting-started"
+    },
+    {
+      "name": "API Reference",
+      "icon": "code",
+      "url": "api-reference/memory-node"
+    },
+    {
+      "name": "Advanced Topics",
+      "icon": "lightbulb",
+      "url": "advanced-topics/temporal-layers"
+    }
+  ],
   "footerSocials": {
     "github": "https://github.com/nkkko/engramdb"
   }
