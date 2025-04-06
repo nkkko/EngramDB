@@ -162,7 +162,7 @@
         <div id="graph-container"></div>
         <div id="debug-info" class="debug-info" style="display: none; max-height: 300px; overflow-y: auto;"></div>
         <div id="event-log" class="debug-info" style="display: none; bottom: auto; top: 10px; left: 10px; max-height: 200px; overflow-y: auto;"></div>
-        
+
         <div class="graph-controls">
             <h6>Relationship Types</h6>
             <div class="legend-item">
@@ -193,7 +193,7 @@
                 <div class="legend-color" style="background-color: #bcbd22;"></div>
                 <span>PrecededBy</span>
             </div>
-            
+
             <h6 class="mt-3">Node Categories</h6>
             <div class="legend-item">
                 <div class="legend-color" style="background-color: #4e79a7;"></div>
@@ -252,22 +252,22 @@
     /**
      * Memory Network Graph Visualization
      */
-    
+
     // Debug settings
     let DEBUG = false; // Debug mode starts off by default
     let DEBUG_LEVEL = 'info'; // Debug level: 'verbose', 'info', 'warn', 'error'
-    
+
     // Debug logging
     const eventLog = [];
     const MAX_LOG_ENTRIES = 30;
-    
+
     // Debug function with timestamp and event logging
     function debug(message, type = 'info') {
         // Always log errors regardless of debug setting
         if (!DEBUG && type !== 'error') {
             return;
         }
-        
+
         // Filter based on debug level
         const debugLevels = {
             'verbose': 0,
@@ -275,14 +275,14 @@
             'warn': 2,
             'error': 3
         };
-        
+
         if (debugLevels[type] < debugLevels[DEBUG_LEVEL]) {
             return;
         }
-        
+
         const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
         const logMessage = `[${timestamp}] ${message}`;
-        
+
         // Log to console with appropriate styling
         switch (type) {
             case 'error':
@@ -294,52 +294,52 @@
             default:
                 console.log(`[Graph Debug] ${logMessage}`);
         }
-        
+
         // Update the main debug info panel
         const debugEl = document.getElementById('debug-info');
         if (debugEl && debugEl.style.display !== 'none') {
             // Keep the most recent message in the main debug panel
             debugEl.textContent = message;
         }
-        
+
         // Add to event log
         eventLog.unshift(logMessage);
         if (eventLog.length > MAX_LOG_ENTRIES) {
             eventLog.pop();
         }
-        
+
         // Update the event log panel
         const eventLogEl = document.getElementById('event-log');
         if (eventLogEl && eventLogEl.style.display !== 'none') {
             eventLogEl.innerHTML = eventLog.map(entry => `<div>${entry}</div>`).join('');
         }
     }
-    
+
     // Log uncaught errors
     window.addEventListener('error', (event) => {
         debug(`ERROR: ${event.message} at ${event.filename}:${event.lineno}`, 'error');
     });
-    
+
     // Graph data from the server
     const graphData = {
         nodes: {{ nodes|tojson }},
         links: {{ edges|tojson }}
     };
-    
+
     debug(`Graph data loaded: ${graphData.nodes.length} nodes, ${graphData.links.length} links`);
-    
+
     // Only initialize the graph if we have data
     if (graphData.nodes.length === 0) {
-        document.getElementById('graph-container').innerHTML = 
+        document.getElementById('graph-container').innerHTML =
             '<div class="alert alert-info mt-3">No memories found to display in the graph. Create memories to visualize them.</div>';
     } else if (graphData.links.length === 0) {
-        document.getElementById('graph-container').innerHTML = 
+        document.getElementById('graph-container').innerHTML =
             '<div class="alert alert-info mt-3">No connections between memories. Create connections to visualize the graph.</div>';
     } else {
         // Prepare the graph container
         const graphContainer = document.getElementById('graph-container');
         graphContainer.style.minHeight = '600px';
-        
+
         // Color mappings for relationship types
         const typeColors = {
             'association': '#4e79a7',
@@ -353,24 +353,24 @@
             'precededby': '#bcbd22',
             'default': '#76b7b2'
         };
-        
+
         // Color mappings for node categories
         const categoryColors = {
             'work': '#4e79a7',
-            'personal': '#f28e2c', 
+            'personal': '#f28e2c',
             'research': '#59a14f',
             'uncategorized': '#76b7b2',
             'default': '#76b7b2'
         };
-        
+
         // Filter valid links (where both source and target exist)
         const nodeIds = new Set(graphData.nodes.map(node => node.id));
-        const validLinks = graphData.links.filter(link => 
+        const validLinks = graphData.links.filter(link =>
             nodeIds.has(link.source) && nodeIds.has(link.target)
         );
-        
+
         debug(`Valid links: ${validLinks.length} of ${graphData.links.length}`);
-        
+
         // Create normalized node and link arrays
         // First create nodes to ensure all node objects exist
         const nodes = graphData.nodes.map(node => ({
@@ -380,27 +380,27 @@
             importance: node.importance || 0.5,
             color: categoryColors[(node.category || 'uncategorized').toLowerCase()] || categoryColors.default
         }));
-        
+
         // Create a Map of nodes by ID for direct reference
         const nodeMap = {};
         nodes.forEach(node => {
             nodeMap[node.id] = node;
         });
-        
+
         debug(`Node map created with ${Object.keys(nodeMap).length} entries`);
-        
-        // Now create links with direct node references - THIS FIXES THE ERROR 
+
+        // Now create links with direct node references - THIS FIXES THE ERROR
         const links = [];
         validLinks.forEach(link => {
             // Check if both source and target nodes exist
             const sourceNode = nodeMap[link.source];
             const targetNode = nodeMap[link.target];
-            
+
             if (sourceNode && targetNode) {
                 links.push({
                     // Use the actual node objects instead of just IDs
                     source: sourceNode,
-                    target: targetNode, 
+                    target: targetNode,
                     type: (link.type || 'default').toLowerCase(),
                     strength: link.strength || 0.5,
                     color: typeColors[(link.type || 'default').toLowerCase()] || typeColors.default
@@ -409,16 +409,16 @@
                 debug(`WARNING: Skipping link with invalid source/target: ${link.source} -> ${link.target}`, 'warn');
             }
         });
-        
+
         debug(`Created ${links.length} links with direct node references`);
-        
+
         // Define physics configuration parameters
         let linkDistance = 100;
         let chargeStrength = -150;
-        
+
         // Reference to the graph instance
         let graph = null;
-        
+
         // DOM element references
         const layoutSelect = document.getElementById('layoutAlgorithm');
         const nodeLabelsCheckbox = document.getElementById('showNodeLabels');
@@ -428,14 +428,14 @@
         const resetButton = document.getElementById('resetBtn');
         const expandButton = document.getElementById('expandBtn');
         const contractButton = document.getElementById('contractBtn');
-        
+
         /**
          * Creates a new graph instance with the specified layout configuration
          */
         function createGraph(layoutType = 'd3') {
             debug(`Creating graph with layout: ${layoutType}`);
             debug(`Graph data: ${nodes.length} nodes, ${links.length} links`);
-            
+
             // Display debug info element with important details
             const debugEl = document.getElementById('debug-info');
             if (debugEl) {
@@ -448,11 +448,11 @@
                     Charge Strength: ${chargeStrength}<br>
                 `;
             }
-            
+
             // Clear the container
             debug('Clearing graph container');
             graphContainer.innerHTML = '';
-            
+
             // Initialize base graph with common settings
             graph = ForceGraph()
                 (graphContainer)
@@ -465,34 +465,34 @@
                 .linkDirectionalArrowRelPos(1)
                 .linkCurvature(0.2)
                 .cooldownTime(3000);
-            
+
             // Reset forces
             graph
                 .d3Force('link', null)
                 .d3Force('charge', null)
                 .d3Force('center', null)
                 .d3Force('radial', null);
-                
+
             // Apply layout-specific configuration
             switch (layoutType) {
                 case 'forceAtlas2':
                     debug('Applying ForceAtlas2-like physics');
                     // ForceAtlas2-like configuration using d3 forces
-                    
+
                     // Strong charge force with longer range
                     const chargeForce = d3.forceManyBody()
                         .strength(chargeStrength * 2) // Stronger repulsion
                         .distanceMax(500);
-                    
+
                     // Custom link force with more strength - NO ID ACCESSOR NEEDED WITH DIRECT REFERENCES
                     const linkForce = d3.forceLink(links)
                         .distance(linkDistance * 1.2)
                         .strength(0.3); // Stronger links
-                    
+
                     // Add a weak radial force to prevent nodes from going too far
                     const radialForce = d3.forceRadial(0, 0, 0)
                         .strength(0.05);
-                        
+
                     graph
                         .d3Force('link', linkForce)
                         .d3Force('charge', chargeForce)
@@ -501,22 +501,22 @@
                         .d3AlphaDecay(0.01) // Slower decay for more movement
                         .d3VelocityDecay(0.2); // Less friction
                     break;
-                    
+
                 case 'ngraph':
                     debug('Applying Ngraph-like physics');
                     // Ngraph-like configuration using d3 forces
-                    
+
                     // Fast movement with less charge repulsion
                     const ngChargeForce = d3.forceManyBody()
                         .strength(chargeStrength / 2) // Less repulsion
                         .distanceMax(200)
                         .theta(0.9); // Faster but less accurate
-                        
+
                     // Weaker links for more freedom of movement - NO ID ACCESSOR NEEDED
                     const ngLinkForce = d3.forceLink(links)
                         .distance(linkDistance * 0.8)
                         .strength(0.1); // Weaker links
-                    
+
                     graph
                         .d3Force('link', ngLinkForce)
                         .d3Force('charge', ngChargeForce)
@@ -524,25 +524,25 @@
                         .d3AlphaDecay(0.05) // Faster decay
                         .d3VelocityDecay(0.4); // More friction
                     break;
-                    
+
                 case 'd3':
                 default:
                     debug('Applying D3 physics');
-                    
+
                     // Standard balanced D3 force layout
                     debug('Creating D3 link force with direct node references');
                     // No need for id accessor as links already have direct node references
                     const d3LinkForce = d3.forceLink(links)
                         .distance(linkDistance)
                         .strength(0.2);
-                    
+
                     // Debug link IDs
                     debug(`First few links: ${JSON.stringify(links.slice(0, 3))}`);
-                        
+
                     const d3ChargeForce = d3.forceManyBody()
                         .strength(chargeStrength)
                         .distanceMax(300);
-                    
+
                     graph
                         .d3Force('link', d3LinkForce)
                         .d3Force('charge', d3ChargeForce)
@@ -551,12 +551,12 @@
                         .d3VelocityDecay(0.3);
                     break;
             }
-            
+
             // Set up custom node rendering
             graph.nodeCanvasObject((node, ctx, globalScale) => {
                 // Node size based on importance
                 const size = 5 + node.importance * 10;
-                
+
                 // Node circle
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
@@ -565,25 +565,25 @@
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 1.5 / globalScale;
                 ctx.stroke();
-                
+
                 // Draw node labels if enabled
                 if (nodeLabelsCheckbox.checked) {
                     const fontSize = 12 / globalScale;
                     const label = node.title;
-                    
+
                     // Draw background for better readability
                     ctx.font = `${fontSize}px Sans-Serif`;
                     const textWidth = ctx.measureText(label).width;
                     const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.4);
-                    
+
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                     ctx.fillRect(
-                        node.x - bckgDimensions[0] / 2, 
-                        node.y + size + 2, 
+                        node.x - bckgDimensions[0] / 2,
+                        node.y + size + 2,
                         bckgDimensions[0],
                         bckgDimensions[1]
                     );
-                    
+
                     // Draw text
                     ctx.font = `${fontSize}px Sans-Serif`;
                     ctx.textAlign = 'center';
@@ -596,43 +596,43 @@
                     );
                 }
             });
-            
+
             // Set up custom link rendering
             graph.linkCanvasObject((link, ctx, globalScale) => {
                 // Get source and target positions
                 const source = link.source;
                 const target = link.target;
-                
+
                 // Skip if positions aren't available
                 if (!source || !target || typeof source.x !== 'number' || typeof target.x !== 'number') {
                     return;
                 }
-                
+
                 // Draw link line
                 const stroke = link.color;
                 const lineWidth = Math.max(1, link.strength * 3);
-                
+
                 ctx.beginPath();
                 ctx.strokeStyle = stroke;
                 ctx.lineWidth = lineWidth;
                 ctx.moveTo(source.x, source.y);
                 ctx.lineTo(target.x, target.y);
                 ctx.stroke();
-                
+
                 // Draw directional arrow
                 const arrowLength = 6;
                 const arrowRelPos = 1;
-                
+
                 // Calculate arrow position
                 const vLine = { x: target.x - source.x, y: target.y - source.y };
                 const lLine = Math.sqrt(Math.pow(vLine.x, 2) + Math.pow(vLine.y, 2));
                 const posRelativeToLine = Math.min(1, arrowRelPos);
                 const arrowX = source.x + (vLine.x * posRelativeToLine);
                 const arrowY = source.y + (vLine.y * posRelativeToLine);
-                
+
                 // Calculate arrow angle
                 const arrowAngle = Math.atan2(target.y - source.y, target.x - source.x);
-                
+
                 // Draw the arrow
                 ctx.save();
                 ctx.translate(arrowX, arrowY);
@@ -644,21 +644,21 @@
                 ctx.fillStyle = stroke;
                 ctx.fill();
                 ctx.restore();
-                
+
                 // Draw link labels if enabled and zoomed in enough
                 if (linkLabelsCheckbox.checked && globalScale >= 1.2) {
                     // Position at the middle of the link
                     const midX = source.x + (target.x - source.x) / 2;
                     const midY = source.y + (target.y - source.y) / 2;
-                    
+
                     // Prepare the label
                     const label = `${link.type} (${link.strength.toFixed(1)})`;
                     const fontSize = Math.max(14, 14 / globalScale);
-                    
+
                     ctx.font = `${fontSize}px Sans-Serif`;
                     const textWidth = ctx.measureText(label).width;
                     const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.4);
-                    
+
                     // Draw background for better readability
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                     ctx.fillRect(
@@ -667,7 +667,7 @@
                         bckgDimensions[0],
                         bckgDimensions[1]
                     );
-                    
+
                     // Draw text
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
@@ -675,36 +675,36 @@
                     ctx.fillText(label, midX, midY);
                 }
             }).linkCanvasObjectMode(() => 'replace');
-            
+
             // Store all nodes by ID for easy lookup during events
             const nodesById = {};
             nodes.forEach(node => {
                 nodesById[node.id] = node;
             });
-            
+
             // ===== DOUBLE-CLICK FIX =====
             // Track node click state for double-click detection
             let lastClickedNodeId = null;
             let lastClickTime = 0;
             const DOUBLE_CLICK_THRESHOLD = 400; // ms
-            
+
             // Log node hovers for debugging
             graph.onNodeHover(node => {
                 if (node) {
                     debug(`Node hover: ${node.id} (${node.title})`);
                 }
             });
-            
+
             // FIRST METHOD: Using the built-in click handler
             graph.onNodeClick(node => {
                 if (!node || !node.id) {
                     debug('Click on invalid node', 'warn');
                     return;
                 }
-                
+
                 const now = Date.now();
                 debug(`Node clicked: ${node.id} (${node.title})`);
-                
+
                 if (lastClickedNodeId === node.id && now - lastClickTime < DOUBLE_CLICK_THRESHOLD) {
                     // Double-click detected
                     debug(`DOUBLE-CLICK detected on node: ${node.id}`);
@@ -721,16 +721,16 @@
                     debug(`First click on node: ${node.id}`);
                     lastClickedNodeId = node.id;
                     lastClickTime = now;
-                    
-                    // Focus on the clicked node 
+
+                    // Focus on the clicked node
                     graph.centerAt(node.x, node.y, 800);
                 }
             });
-            
+
             // SECOND METHOD: Implement direct node detection in double-click
             graphContainer.addEventListener('dblclick', event => {
                 debug(`Double-click detected at x:${event.clientX}, y:${event.clientY}`);
-                
+
                 // The Force Graph library should handle this internally,
                 // but we'll add this as a fallback direct handling.
                 // We'll auto-navigate to the currently focused node for simplicity.
@@ -745,7 +745,7 @@
                     }
                 }
             });
-            
+
             // Show a dedicated "Open Node" button for better UX
             function createOpenNodeButton(nodeId) {
                 // Remove any existing button
@@ -753,7 +753,7 @@
                 if (existingBtn) {
                     existingBtn.remove();
                 }
-                
+
                 // Create new button
                 const openBtn = document.createElement('button');
                 openBtn.id = 'open-node-btn';
@@ -763,7 +763,7 @@
                 openBtn.style.left = '50%';
                 openBtn.style.transform = 'translateX(-50%)';
                 openBtn.style.zIndex = '1000';
-                
+
                 // Add click handler
                 openBtn.addEventListener('click', () => {
                     debug(`Open button clicked for node: ${nodeId}`);
@@ -775,40 +775,40 @@
                         debug(`ERROR in navigation: ${err.message}`, 'error');
                     }
                 });
-                
+
                 // Add to container
                 graphContainer.parentNode.appendChild(openBtn);
-                
+
                 return openBtn;
             }
-            
+
             // Update the node click handler to show the button
             const originalOnNodeClick = graph.onNodeClick();
             graph.onNodeClick(node => {
                 // Call the original handler if it exists
                 if (originalOnNodeClick) originalOnNodeClick(node);
-                
+
                 // Show the open button for this node
                 if (node && node.id) {
                     debug(`Creating open button for node: ${node.id}`);
                     createOpenNodeButton(node.id);
                 }
             });
-            
+
             // Warm up the simulation - using safer approach without method chaining
             try {
                 debug('Warming up simulation');
                 graph.cooldownTicks(0); // Prevent simulation from ending
-                
+
                 // Try different methods to reset/warm up the simulation
                 if (typeof graph.resetForceSimulation === 'function') {
                     graph.resetForceSimulation();
                 } else {
                     // Fallback: Refresh the graph data to trigger simulation
                     const currentData = graph.graphData();
-                    graph.graphData({...currentData}); 
+                    graph.graphData({...currentData});
                 }
-                
+
                 // Cool down after warm-up
                 setTimeout(() => {
                     graph.cooldownTicks(50); // Allow simulation to end naturally
@@ -818,35 +818,35 @@
                 debug(`ERROR in simulation warmup: ${err}`, 'error');
                 console.error('Simulation warmup error:', err);
             }
-            
+
             return graph;
         }
-        
+
         /**
          * Expands the graph by increasing link distance and decreasing charge strength
          */
         function expandGraph() {
             debug('Expanding graph');
-            
+
             // Update physics parameters
             linkDistance += 50;
             chargeStrength -= 50;
-            
+
             debug(`New parameters: linkDistance=${linkDistance}, chargeStrength=${chargeStrength}`);
-            
+
             // Apply changes based on current layout
             const layoutType = layoutSelect.value;
-            
+
             // Dump current graph state to help with debugging
             dumpGraphState();
-            
+
             // Get the current graph data
             const currentGraphData = graph.graphData();
             debug(`Current graph data: ${currentGraphData.nodes.length} nodes, ${currentGraphData.links.length} links`);
-            
+
             // Reset the simulation with new parameters
             let linkForce, chargeForce, radialForce;
-            
+
             switch (layoutType) {
                 case 'forceAtlas2':
                     debug('Updating ForceAtlas2 forces for expand');
@@ -854,21 +854,21 @@
                     chargeForce = d3.forceManyBody()
                         .strength(chargeStrength * 2)
                         .distanceMax(500);
-                    
+
                     // FIXED: No id accessor needed with direct node references
                     linkForce = d3.forceLink(currentGraphData.links)
                         .distance(linkDistance * 1.2)
                         .strength(0.3);
-                    
+
                     radialForce = d3.forceRadial(0, 0, 0)
                         .strength(0.05);
-                    
+
                     graph
                         .d3Force('link', linkForce)
                         .d3Force('charge', chargeForce)
                         .d3Force('radial', radialForce);
                     break;
-                
+
                 case 'ngraph':
                     debug('Updating Ngraph forces for expand');
                     // Ngraph-like setup with new parameters
@@ -876,44 +876,44 @@
                         .strength(chargeStrength / 2)
                         .distanceMax(200)
                         .theta(0.9);
-                    
+
                     // FIXED: No id accessor needed
                     linkForce = d3.forceLink(currentGraphData.links)
                         .distance(linkDistance * 0.8)
                         .strength(0.1);
-                    
+
                     graph
                         .d3Force('link', linkForce)
                         .d3Force('charge', chargeForce);
                     break;
-                
+
                 case 'd3':
                 default:
                     debug('Updating D3 forces for expand');
                     // Standard D3 force layout with new parameters
-                    
+
                     // FIXED: No id accessor needed with direct node references
                     linkForce = d3.forceLink(currentGraphData.links)
                         .distance(linkDistance)
                         .strength(0.2);
-                    
+
                     chargeForce = d3.forceManyBody()
                         .strength(chargeStrength)
                         .distanceMax(300);
-                    
+
                     graph
                         .d3Force('link', linkForce)
                         .d3Force('charge', chargeForce);
                     break;
             }
-            
+
             // Reheat the simulation - safer approach without method chaining
             try {
                 debug('Reheating simulation after expand');
-                
+
                 // Set cooldown ticks to 0 to keep running
                 graph.cooldownTicks(0);
-                
+
                 // Try different methods to restart the simulation
                 if (typeof graph.resetForceSimulation === 'function') {
                     graph.resetForceSimulation();
@@ -926,7 +926,7 @@
                     });
                     graph.graphData(data);
                 }
-                
+
                 // Allow simulation to end after a delay
                 setTimeout(() => {
                     debug('Cooling down simulation');
@@ -937,32 +937,32 @@
                 console.error('Expand error:', err);
             }
         }
-        
+
         /**
          * Contracts the graph by decreasing link distance and increasing charge strength
          */
         function contractGraph() {
             debug('Contracting graph');
-            
+
             // Update physics parameters with limits
             linkDistance = Math.max(50, linkDistance - 50);
             chargeStrength = Math.min(-50, chargeStrength + 50);
-            
+
             debug(`New parameters: linkDistance=${linkDistance}, chargeStrength=${chargeStrength}`);
-            
+
             // Apply changes based on current layout
             const layoutType = layoutSelect.value;
-            
+
             // Dump graph state for debugging
             dumpGraphState();
-            
+
             // Get the current graph data
             const currentGraphData = graph.graphData();
             debug(`Current graph data: ${currentGraphData.nodes.length} nodes, ${currentGraphData.links.length} links`);
-            
+
             // Reset the simulation with new parameters
             let linkForce, chargeForce, radialForce;
-            
+
             switch (layoutType) {
                 case 'forceAtlas2':
                     debug('Updating ForceAtlas2 forces for contract');
@@ -970,21 +970,21 @@
                     chargeForce = d3.forceManyBody()
                         .strength(chargeStrength * 2)
                         .distanceMax(500);
-                    
+
                     // FIXED: No id accessor needed with direct node references
                     linkForce = d3.forceLink(currentGraphData.links)
                         .distance(linkDistance * 1.2)
                         .strength(0.3);
-                    
+
                     radialForce = d3.forceRadial(0, 0, 0)
                         .strength(0.05);
-                    
+
                     graph
                         .d3Force('link', linkForce)
                         .d3Force('charge', chargeForce)
                         .d3Force('radial', radialForce);
                     break;
-                
+
                 case 'ngraph':
                     debug('Updating Ngraph forces for contract');
                     // Ngraph-like setup with new parameters
@@ -992,44 +992,44 @@
                         .strength(chargeStrength / 2)
                         .distanceMax(200)
                         .theta(0.9);
-                    
+
                     // FIXED: No id accessor needed
                     linkForce = d3.forceLink(currentGraphData.links)
                         .distance(linkDistance * 0.8)
                         .strength(0.1);
-                    
+
                     graph
                         .d3Force('link', linkForce)
                         .d3Force('charge', chargeForce);
                     break;
-                
+
                 case 'd3':
                 default:
                     debug('Updating D3 forces for contract');
                     // Standard D3 force layout with new parameters
-                    
+
                     // FIXED: No id accessor needed with direct node references
                     linkForce = d3.forceLink(currentGraphData.links)
                         .distance(linkDistance)
                         .strength(0.2);
-                    
+
                     chargeForce = d3.forceManyBody()
                         .strength(chargeStrength)
                         .distanceMax(300);
-                    
+
                     graph
                         .d3Force('link', linkForce)
                         .d3Force('charge', chargeForce);
                     break;
             }
-            
+
             // Reheat the simulation - safer approach without method chaining
             try {
                 debug('Reheating simulation after contract');
-                
+
                 // Set cooldown ticks to 0 to keep running
                 graph.cooldownTicks(0);
-                
+
                 // Try different methods to restart the simulation
                 if (typeof graph.resetForceSimulation === 'function') {
                     graph.resetForceSimulation();
@@ -1042,7 +1042,7 @@
                     });
                     graph.graphData(data);
                 }
-                
+
                 // Allow simulation to end after a delay
                 setTimeout(() => {
                     debug('Cooling down simulation');
@@ -1053,17 +1053,17 @@
                 console.error('Contract error:', err);
             }
         }
-        
+
         // Initialize the graph with default layout
         graph = createGraph('d3');
-        
+
         // Function to show graph's internal state for debugging
         function dumpGraphState() {
             if (!graph) {
                 debug('Cannot dump graph state - graph is null', 'warn');
                 return;
             }
-            
+
             try {
                 const state = {
                     graphData: graph.graphData(),
@@ -1072,14 +1072,14 @@
                     currentZoom: graph.zoom(),
                     forces: {}
                 };
-                
+
                 // Try to get D3 force information
                 const forceNames = ['link', 'charge', 'center', 'radial'];
                 forceNames.forEach(forceName => {
                     const force = graph.d3Force(forceName);
                     state.forces[forceName] = force ? 'active' : 'not set';
                 });
-                
+
                 debug(`Graph state dump: ${JSON.stringify(state, null, 2)}`, 'info');
                 return state;
             } catch (err) {
@@ -1087,9 +1087,9 @@
                 console.error(err);
             }
         }
-        
+
         // ===== EVENT HANDLERS =====
-        
+
         // Get Settings menu controls
         const enableDebugToggle = document.getElementById('enableDebug');
         const showDebugOverlayToggle = document.getElementById('showDebugOverlay');
@@ -1097,25 +1097,25 @@
         const debugLevelSelect = document.getElementById('debugLevel');
         const resetGraphBtn = document.getElementById('resetGraphBtn');
         const dumpStateBtn = document.getElementById('dumpStateBtn');
-        
+
         // Toggle debugging
         enableDebugToggle.addEventListener('change', function() {
             DEBUG = this.checked;
             debug(`Debugging ${DEBUG ? 'enabled' : 'disabled'}`);
-            
+
             // If turning off debug, also hide panels
             if (!DEBUG) {
                 const debugEl = document.getElementById('debug-info');
                 const logEl = document.getElementById('event-log');
                 if (debugEl) debugEl.style.display = 'none';
                 if (logEl) logEl.style.display = 'none';
-                
+
                 // Update toggles
                 showDebugOverlayToggle.checked = false;
                 showEventLogToggle.checked = false;
             }
         });
-        
+
         // Toggle debug overlay
         showDebugOverlayToggle.addEventListener('change', function() {
             const debugEl = document.getElementById('debug-info');
@@ -1123,7 +1123,7 @@
                 debugEl.style.display = this.checked ? 'block' : 'none';
                 debug(`Debug overlay ${this.checked ? 'shown' : 'hidden'}`);
             }
-            
+
             // If showing debug overlay, ensure debug is enabled
             if (this.checked && !DEBUG) {
                 DEBUG = true;
@@ -1131,7 +1131,7 @@
                 debug('Debugging automatically enabled');
             }
         });
-        
+
         // Toggle event log
         showEventLogToggle.addEventListener('change', function() {
             const logEl = document.getElementById('event-log');
@@ -1139,7 +1139,7 @@
                 logEl.style.display = this.checked ? 'block' : 'none';
                 debug(`Event log ${this.checked ? 'shown' : 'hidden'}`);
             }
-            
+
             // If showing event log, ensure debug is enabled
             if (this.checked && !DEBUG) {
                 DEBUG = true;
@@ -1147,19 +1147,19 @@
                 debug('Debugging automatically enabled');
             }
         });
-        
+
         // Change debug level
         debugLevelSelect.addEventListener('change', function() {
             DEBUG_LEVEL = this.value;
             debug(`Debug level set to: ${DEBUG_LEVEL}`);
         });
-        
+
         // Dump state button
         dumpStateBtn.addEventListener('click', function() {
             debug('Manual state dump requested');
             dumpGraphState();
         });
-        
+
         // Reset graph button
         resetGraphBtn.addEventListener('click', function() {
             try {
@@ -1176,25 +1176,25 @@
                 console.error(err);
             }
         });
-        
+
         // Add detailed mouse tracking for debugging
         graphContainer.addEventListener('mousemove', (event) => {
             // Uncomment the next line for very verbose debugging
             // debug(`Mouse move at x:${event.clientX}, y:${event.clientY}`);
         });
-        
+
         // Track all mouse events on the container
         ['mousedown', 'mouseup', 'dblclick'].forEach(eventType => {
             graphContainer.addEventListener(eventType, (event) => {
                 debug(`Mouse event: ${eventType} at x:${event.clientX}, y:${event.clientY}`);
             });
         });
-        
+
         // Handle layout algorithm changes
         layoutSelect.addEventListener('change', function() {
             try {
                 debug(`Changing layout to: ${this.value}`);
-                
+
                 // Recreate graph with new layout
                 debug('About to call createGraph()');
                 graph = createGraph(this.value);
@@ -1204,7 +1204,7 @@
                 console.error(err);
             }
         });
-        
+
         // Toggle handlers for labels
         nodeLabelsCheckbox.addEventListener('change', function() {
             try {
@@ -1222,7 +1222,7 @@
                 console.error(err);
             }
         });
-        
+
         linkLabelsCheckbox.addEventListener('change', function() {
             try {
                 debug(`Link labels toggled: ${this.checked}`);
@@ -1239,7 +1239,7 @@
                 console.error(err);
             }
         });
-        
+
         // Button handlers with enhanced error tracking
         zoomInButton.addEventListener('click', function() {
             try {
@@ -1256,7 +1256,7 @@
                 console.error(err);
             }
         });
-        
+
         zoomOutButton.addEventListener('click', function() {
             try {
                 debug('Zoom out button clicked');
@@ -1272,7 +1272,7 @@
                 console.error(err);
             }
         });
-        
+
         resetButton.addEventListener('click', function() {
             try {
                 debug('Reset view button clicked');
@@ -1287,7 +1287,7 @@
                 console.error(err);
             }
         });
-        
+
         expandButton.addEventListener('click', function() {
             try {
                 debug('Expand button clicked');
@@ -1301,7 +1301,7 @@
                 console.error(err);
             }
         });
-        
+
         contractButton.addEventListener('click', function() {
             try {
                 debug('Contract button clicked');
@@ -1315,7 +1315,7 @@
                 console.error(err);
             }
         });
-        
+
         // Handle window resize
         window.addEventListener('resize', function() {
             if (graph) {
@@ -1323,7 +1323,7 @@
                 graph.height(graphContainer.clientHeight);
             }
         });
-        
+
         // Initial setup
         debug('Graph initialization complete');
     }

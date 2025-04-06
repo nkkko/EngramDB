@@ -1,0 +1,66 @@
+---
+title: "Introduction to EngramDB"
+description: "An overview of EngramDB and its capabilities"
+---
+
+# Introduction to EngramDB
+
+EngramDB is a specialized database system designed specifically for agent memory management. It provides efficient storage, retrieval, and querying of agent memories using a unified memory representation model.
+
+## What is an Engram?
+
+In neuroscience, an engram is a hypothetical means by which memory traces are stored as biophysical or biochemical changes in the brain. EngramDB borrows this concept to represent agent memories as rich, multi-dimensional data structures that combine:
+
+- **Vector embeddings** for semantic content
+- **Graph connections** for relational information
+- **Temporal layers** for memory evolution
+- **Flexible attributes** for structured metadata
+
+## Why EngramDB?
+
+Traditional databases are not optimized for the unique requirements of agent memory systems:
+
+- **Vector databases** excel at similarity search but lack graph capabilities
+- **Graph databases** handle relationships well but aren't optimized for vector similarity
+- **Document databases** provide flexible schemas but lack specialized memory features
+- **Time-series databases** track changes over time but aren't designed for semantic search
+
+EngramDB combines the strengths of these different database types into a unified system specifically designed for agent memory management.
+
+## Key Use Cases
+
+EngramDB is ideal for:
+
+- **AI Agents**: Store and retrieve memories for conversational agents, assistants, and autonomous systems
+- **Knowledge Graphs**: Build semantic knowledge graphs with vector similarity capabilities
+- **Memory Evolution**: Track how knowledge and beliefs change over time
+- **Multi-modal Memory**: Store and query memories across different modalities (text, images, etc.)
+- **Cognitive Architectures**: Implement memory systems for cognitive architectures
+
+## Core Features
+
+- **Unified Memory Representation**: Combines graph, vector, and temporal properties in a single primitive
+- **Vector Similarity Search**: Find memories with similar semantic content
+- **Flexible Storage Options**: In-memory database for testing and development, file-based for persistence
+- **Query API**: Rich querying with vector similarity, attribute filters, and temporal constraints
+- **Memory Evolution**: Track changes to memories over time with temporal layers
+- **Python Bindings**: First-class Python API for integration with ML and AI applications
+- **Web Interface**: Browser-based UI for visualization and interaction with the database
+
+## Architecture
+
+EngramDB is built around these core components:
+
+1. **MemoryNode**: The fundamental unit of storage, combining vector embeddings, graph connections, temporal layers, and flexible attributes
+2. **Storage Engines**: Both in-memory and file-based storage options
+3. **Vector Index**: For efficient similarity search
+4. **Query System**: A fluent interface for building complex queries
+5. **Database**: A unified interface combining all components
+6. **Language Bindings**: Core implementation in Rust with Python bindings
+
+## Next Steps
+
+- [Getting Started](/docs/getting-started): Installation and basic usage
+- [Core Concepts](/docs/core-concepts): Detailed explanation of key concepts
+- [API Reference](/docs/api-reference/memory-node): Comprehensive API documentation
+- [Examples](/docs/examples/rust-examples): Code examples in Rust and Python

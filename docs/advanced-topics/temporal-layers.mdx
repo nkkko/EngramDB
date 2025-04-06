@@ -1,3 +1,8 @@
+---
+title: "Working with Temporal Layers"
+description: "How to track memory evolution over time using temporal layers"
+---
+
 # Working with Temporal Layers
 
 Temporal layers are a key feature of EngramDB that allow you to track how memories evolve over time. This document explains how to work with temporal layers effectively.
@@ -47,7 +52,7 @@ memory.add_temporal_layer(layer);
 // Now update the memory
 memory.set_embeddings(vec![0.15, 0.25, 0.35, 0.45]);
 memory.set_attribute(
-    "title".to_string(), 
+    "title".to_string(),
     AttributeValue::String("Updated knowledge".to_string())
 );
 
@@ -107,12 +112,12 @@ for (i, layer) in layers.iter().enumerate() {
     println!("Layer {}:", i + 1);
     println!("  Created at: {}", layer.timestamp());
     println!("  Reason: {}", layer.reason());
-    
+
     // Check if this layer has embeddings
     if let Some(embeddings) = layer.embeddings() {
         println!("  Embeddings: {:?}", embeddings);
     }
-    
+
     // Check if this layer has attributes
     if let Some(attributes) = layer.attributes() {
         println!("  Attributes:");
@@ -138,11 +143,11 @@ for i, layer in enumerate(layers):
     print(f"Layer {i + 1}:")
     print(f"  Created at: {layer.timestamp()}")
     print(f"  Reason: {layer.reason()}")
-    
+
     # Check if this layer has embeddings
     if layer.embeddings() is not None:
         print(f"  Embeddings: {layer.embeddings()}")
-    
+
     # Check if this layer has attributes
     if layer.attributes() is not None:
         print("  Attributes:")
@@ -160,7 +165,7 @@ Temporal layers are ideal for tracking how an agent's knowledge evolves over tim
 // Initial knowledge
 let mut memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
 memory.set_attribute(
-    "concept".to_string(), 
+    "concept".to_string(),
     AttributeValue::String("Machine learning".to_string())
 );
 memory.set_attribute(
@@ -239,7 +244,7 @@ memory.add_temporal_layer(layer)
 memory.set_attribute("belief", "The Earth is spherical")
 memory.set_attribute("confidence", 0.95)
 memory.set_attribute("evidence", [
-    "Scientific papers", 
+    "Scientific papers",
     "Satellite images",
     "Physics principles"
 ])
@@ -262,7 +267,7 @@ println!("Current state: {:?}", memory);
 for (i, layer) in memory.temporal_layers().iter().rev().enumerate() {
     println!("Change {}: at timestamp {}", i + 1, layer.timestamp());
     println!("  Reason: {}", layer.reason());
-    
+
     if let Some(attributes) = layer.attributes() {
         if let Some(AttributeValue::Float(confidence)) = attributes.get("confidence") {
             println!("  Previous confidence: {:.2}", confidence);

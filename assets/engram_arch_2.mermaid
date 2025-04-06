@@ -1,0 +1,37 @@
+graph LR
+    subgraph UserInterfaces [User Interfaces]
+        CLI[Rust CLI]
+        PyApp[Python App / Agent]
+        WebApp[Flask Web App]
+    end
+
+    subgraph EngramDB [EngramDB System]
+        PyBindings[Python Bindings] -- Wraps --> RustLib[Rust Core Library]
+        RustLib -- Contains --> DB[(Database Facade)]
+
+        subgraph RustCoreComponents [Core Components]
+            style RustCoreComponents fill:#eee,stroke:#999
+            DB -- Manages --> MN(MemoryNode)
+            DB -- Uses --> SE{Storage Engine}
+            DB -- Uses --> VI[Vector Index]
+            DB -- Uses --> QS[Query System]
+        end
+
+        SE -- Implemented By --> MemStore[Memory Storage]
+        SE -- Implemented By --> FileStore[File Storage]
+    end
+
+    CLI -- Uses --> RustLib
+    PyApp -- Uses --> PyBindings
+    WebApp -- Uses --> PyBindings
+
+    %% Styling
+    classDef interface fill:#ccf,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    classDef rust fill:#f9d,stroke:#333
+    classDef py fill:#adf,stroke:#333
+    classDef web fill:#dfa,stroke:#333
+
+    class CLI,RustLib,DB,MN,SE,VI,QS,MemStore,FileStore rust
+    class PyBindings,PyApp py
+    class WebApp web
+    class SE interface

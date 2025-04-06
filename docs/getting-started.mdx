@@ -1,3 +1,8 @@
+---
+title: "Getting Started with EngramDB"
+description: "Installation, setup, and basic usage of EngramDB"
+---
+
 # Getting Started with EngramDB
 
 This guide will help you get started with EngramDB, covering installation, basic setup, and simple usage examples.
@@ -16,7 +21,7 @@ This guide will help you get started with EngramDB, covering installation, basic
 Clone the repository and build the project:
 
 ```bash
-git clone https://github.com/yourusername/engramdb.git
+git clone https://github.com/nkkko/engramdb.git
 cd engramdb
 cargo build
 ```
@@ -75,7 +80,7 @@ let mut db = Database::in_memory();
 
 // Create a memory node
 let mut memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
-memory.set_attribute("title".to_string(), 
+memory.set_attribute("title".to_string(),
     AttributeValue::String("Important information".to_string()));
 
 // Save to database
@@ -122,6 +127,6 @@ for memory_id, similarity in results:
 
 ## Next Steps
 
-- Explore the [Core Concepts](core-concepts.md) to understand the fundamental building blocks of EngramDB
-- Check out the [API Reference](api-reference/memory-node.md) for detailed information on the available APIs
-- See the [Examples](examples/rust-examples.md) for more complex usage scenarios
+- Explore the [Core Concepts](/core-concepts) to understand the fundamental building blocks of EngramDB
+- Check out the [API Reference](/api-reference/memory-node) for detailed information on the available APIs
+- See the [Examples](/examples/rust-examples) for more complex usage scenarios

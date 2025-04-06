@@ -1,3 +1,8 @@
+---
+title: "EngramDB: Engram Database"
+description: "A specialized database system for agent memory management"
+---
+
 # EngramDB: Engram Database
 
 EngramDB is a specialized database system designed specifically for agent memory management. It provides efficient storage, retrieval, and querying of agent memories using a unified memory representation model.
@@ -11,6 +16,8 @@ EngramDB is a specialized database system designed specifically for agent memory
 - **Memory Evolution**: Track changes to memories over time with temporal layers
 - **Python Bindings**: First-class Python API for integration with ML and AI applications
 - **Web Interface**: Browser-based UI for visualization and interaction with the database
+
+![EngramDB Architecture Diagram](assets/engram_arch_2.svg)
 
 ## Getting Started
 
@@ -59,7 +66,7 @@ EngramDB includes several Rust examples that demonstrate different features:
 # Run the basic usage example
 cargo run --example basic_usage
 
-# Run the memory graph example 
+# Run the memory graph example
 cargo run --example memory_graph
 
 # Run the storage comparison example
@@ -117,7 +124,7 @@ let mut db = Database::in_memory();
 
 // Create a memory node
 let mut memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
-memory.set_attribute("title".to_string(), 
+memory.set_attribute("title".to_string(),
     AttributeValue::String("Important information".to_string()));
 
 // Save to database
@@ -244,7 +251,7 @@ EngramDB is built around these core components:
 6. **Language Bindings**:
    - Core implementation in Rust for performance and safety
    - Python bindings using PyO3 for ML/AI integration
-   
+
 7. **Web Interface**:
    - Flask-based web application
    - Visualization and interaction with memory database

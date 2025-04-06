@@ -1,0 +1,52 @@
+graph TD
+    subgraph User_Interface [User Interface]
+        RustCLI[("Rust CLI (main.rs)")]
+        PythonAPI[("Python API (engramdb-py)")]
+        WebApp[("Flask Web App (web/)")]
+    end
+
+    subgraph EngramDB_Library [EngramDB_Rust_Library_src]
+        style EngramDB_Library fill:#eee,stroke:#999
+        DB[(Database)] -- Manages --> MN[(MemoryNode)]
+        DB -- Uses --> SE{StorageEngine}
+        DB -- Uses --> VI[VectorIndex]
+        DB -- Provides --> DQB[DatabaseQueryBuilder]
+
+        DQB -- Uses --> QB_Core[QueryBuilder Core]
+
+        QB_Core -- Uses --> Filters["Filters (Attribute/Temporal)"]
+        QB_Core -- Uses --> VI
+
+        SE -- Implemented By --> MSE[("MemoryStorageEngine")]
+        SE -- Implemented By --> FSE[("FileStorageEngine")]
+        MSE -- Stores --> MN_Data(MemoryNode Data - In Memory)
+        FSE -- Stores --> MN_Data_File(MemoryNode Data - Files)
+
+        VI -- Indexes --> Embeddings(Embeddings)
+        VI -- Uses --> Sim[("Similarity Utils")]
+
+        MN -- Contains --> Embeddings
+        MN -- Contains --> Attrs["Attributes (AttributeValue)"]
+        MN -- Contains --> Conns["Connections (Connection)"]
+        MN -- Contains --> TL["Temporal Layers (TemporalLayer)"]
+        MN -- Contains --> AH["Access History"]
+
+        Conns -- Contains --> RT{RelationshipType}
+    end
+
+    RustCLI -- Interacts With --> DB
+    PythonAPI -- Interacts With --> DB
+    WebApp -- Interacts With --> PythonAPI
+
+    WebApp -- Optionally Uses --> EmbeddingUtils[("Embedding Utils (Python/Transformers)")]
+
+    %% Styling
+    classDef main fill:#f9f,stroke:#333,stroke-width:2px
+    classDef core_data fill:#ffc,stroke:#333,stroke-width:2px
+    classDef interface fill:#ccf,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    classDef component fill:#cfc,stroke:#333,stroke-width:1px
+
+    class DB main
+    class MN core_data
+    class SE interface
+    class VI,QB_Core,Filters,Sim,MSE,FSE component

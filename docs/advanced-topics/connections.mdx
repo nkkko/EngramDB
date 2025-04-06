@@ -1,3 +1,8 @@
+---
+title: "Working with Connections"
+description: "How to create and manage graph-like relationships between memory nodes"
+---
+
 # Working with Connections
 
 Connections in EngramDB allow you to create graph-like relationships between memory nodes. This document explains how to work with connections effectively.
@@ -180,7 +185,7 @@ for connection in connections {
     println!("Connected to: {}", connection.target_id);
     println!("Relationship type: {}", connection.type_name);
     println!("Strength: {:.2}", connection.strength);
-    
+
     // Load the target memory to get more information
     let target = db.load(connection.target_id)?;
     // ... work with the target memory
@@ -198,7 +203,7 @@ for connection in connections:
     print(f"Connected to: {connection.target_id}")
     print(f"Relationship type: {connection.type_name}")
     print(f"Strength: {connection.strength:.2f}")
-    
+
     # Load the target memory to get more information
     target = db.load(connection.target_id)
     # ... work with the target memory
@@ -223,7 +228,7 @@ let mut memory = db.load(memory_id)?;
 let removed = memory.remove_connection(target_id);
 if removed {
     println!("Connection removed");
-    
+
     // Save the updated memory
     db.save(&memory)?;
 } else {
@@ -241,7 +246,7 @@ memory = db.load(memory_id)
 removed = memory.remove_connection(target_id)
 if removed:
     print("Connection removed")
-    
+
     # Save the updated memory
     db.save(memory)
 else:
@@ -378,16 +383,16 @@ while let Some(current_id) = queue.pop_front() {
     if visited.contains(&current_id) {
         continue;
     }
-    
+
     visited.insert(current_id);
-    
+
     // Process the current node
     let memory = db.load(current_id)?;
     println!("Visiting memory: {}", current_id);
-    
+
     // Get all connections
     let connections = db.get_connections(current_id)?;
-    
+
     // Add connected nodes to the queue
     for connection in connections {
         if !visited.contains(&connection.target_id) {
@@ -414,16 +419,16 @@ while queue:
     current_id = queue.popleft()
     if current_id in visited:
         continue
-    
+
     visited.add(current_id)
-    
+
     # Process the current node
     memory = db.load(current_id)
     print(f"Visiting memory: {current_id}")
-    
+
     # Get all connections
     connections = db.get_connections(current_id)
-    
+
     # Add connected nodes to the queue
     for connection in connections:
         if connection.target_id not in visited:

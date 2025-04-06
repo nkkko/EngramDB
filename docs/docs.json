@@ -1,0 +1,93 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "EngramDB",
+  "description": "A specialized database system for agent memory management",
+  "logo": {
+    "light": "/logo/logo-light.svg",
+    "dark": "/logo/logo-dark.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#4F46E5",
+    "light": "#818CF8",
+    "dark": "#3730A3"
+  },
+  "theme": "mint",
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/nkkko/engramdb"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "https://github.com/nkkko/engramdb"
+    }
+  },
+  "navigation": {
+    "anchors": [
+      {
+        "anchor": "API Reference",
+        "icon": "code",
+        "href": "/api-reference/memory-node"
+      },
+      {
+        "anchor": "Examples",
+        "icon": "book-open",
+        "href": "/examples/rust-examples"
+      },
+      {
+        "anchor": "Advanced Topics",
+        "icon": "lightbulb",
+        "href": "/advanced-topics/temporal-layers"
+      }
+    ],
+    "groups": [
+      {
+        "pages": [
+          "index"
+        ]
+      },
+      {
+        "pages": [
+          "introduction",
+          "getting-started",
+          "core-concepts"
+        ]
+      },
+      {
+        "pages": [
+          "api-reference/memory-node",
+          "api-reference/database",
+          "api-reference/query",
+          "api-reference/vector-index"
+        ]
+      },
+      {
+        "pages": [
+          "examples/rust-examples",
+          "examples/python-examples"
+        ]
+      },
+      {
+        "pages": [
+          "advanced-topics/temporal-layers",
+          "advanced-topics/connections",
+          "advanced-topics/storage-engines"
+        ]
+      },
+      {
+        "pages": [
+          "contributing"
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/nkkko/engramdb"
+    }
+  }
+}

@@ -1,3 +1,8 @@
+---
+title: "Query API Reference"
+description: "Detailed reference for the query-related APIs"
+---
+
 # Query API Reference
 
 The Query API provides a flexible way to search for memories based on multiple criteria. This document provides a detailed reference for the query-related APIs in EngramDB.
@@ -340,12 +345,12 @@ Here's an example of a complex query that combines multiple criteria:
 ```rust
 // Create filters
 let category_filter = AttributeFilter::equals(
-    "category", 
+    "category",
     AttributeValue::String("work".to_string())
 );
 
 let importance_filter = AttributeFilter::greater_than(
-    "importance", 
+    "importance",
     AttributeValue::Float(0.7)
 );
 

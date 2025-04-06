@@ -1,3 +1,8 @@
+---
+title: "Vector Index API Reference"
+description: "Detailed reference for the Vector Index API"
+---
+
 # Vector Index API Reference
 
 The Vector Index is responsible for storing and searching vector embeddings in EngramDB. This document provides a detailed reference for the Vector Index API.
@@ -244,7 +249,7 @@ let results = vector_index.search(&query, 2, 0.0)?;
 // Process results
 for (id, similarity) in results {
     println!("Memory ID: {}, Similarity: {:.4}", id, similarity);
-    
+
     // In a real application, you would load the full memory node here
     // let memory = db.load(id)?;
     // println!("Memory: {:?}", memory);
