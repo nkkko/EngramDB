@@ -43,7 +43,7 @@ This directory contains examples demonstrating how to use EngramDB with Pydantic
    cp .env.example .env
    # Edit .env with your preferred text editor to add API keys
    ```
-   
+
    The `.env` file allows you to configure:
    - The LLM model to use (OpenAI, Anthropic, or Groq)
    - Your API keys for the chosen provider
@@ -56,13 +56,18 @@ This directory contains examples demonstrating how to use EngramDB with Pydantic
    python flask_website_generator.py
    ```
 
+   or with web interface:
+   ```bash
+   python flask_website_generator.py web
+   ```
+
 3. Start by describing the website you want to build:
    ```
    You: I need a simple blog website with user authentication
    ```
 
 4. Continue the conversation, providing more details as the agent asks for them
-   
+
 5. Type `save` at any time to save the generated files to disk
 
 6. Type `exit` to quit the application
@@ -98,14 +103,14 @@ This approach helps solve common challenges in LLM applications like context lim
 ## Troubleshooting
 
 ### Missing Dependencies
-- **Error**: `ModuleNotFoundError: No module named 'engramdb_py'`  
+- **Error**: `ModuleNotFoundError: No module named 'engramdb_py'`
   **Solution**: Install EngramDB from the local repository as shown in the Development Setup.
 
-- **Error**: `ModuleNotFoundError: No module named 'pydantic_ai'`  
+- **Error**: `ModuleNotFoundError: No module named 'pydantic_ai'`
   **Solution**: Make sure you've installed the pydantic-ai package with `pip install pydantic-ai`.
 
 ### API Key Issues
-- **Error**: "API key not found" or "Authentication error"  
+- **Error**: "API key not found" or "Authentication error"
   **Solution**: Ensure you've added your API key to the `.env` file and it's correct.
 
 ### Memory Database
