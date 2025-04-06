@@ -1,5 +1,8 @@
 """
-Basic usage example for the EngramDB Python SDK.
+EngramDB Example: AI Coding Agent for Bug Fixing
+
+This example demonstrates how an AI coding agent would use EngramDB
+to store and retrieve memories while fixing bugs in a codebase.
 """
 import sys
 import os
@@ -7,7 +10,7 @@ import os
 # Add the parent directory to sys.path so Python can find the engramdb package
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from engramdb_py import MemoryNode, Database, RelationshipType
+from engramdb_py import MemoryNode, Database, AttributeFilter
 import numpy as np
 
 def run_example():
@@ -16,52 +19,88 @@ def run_example():
         print("Creating in-memory database...")
         db = Database.in_memory()
         
-        # Create example memories
-        print("\nCreating sample memories...")
+        print("\nCreating memories for AI Coding Agent bug fixing workflow...")
         
-        # Memory 1: Meeting notes
-        embeddings1 = np.array([0.1, 0.3, 0.5, 0.1], dtype=np.float32)
-        memory1 = MemoryNode(embeddings1)
-        memory1.set_attribute("title", "Meeting Notes")
-        memory1.set_attribute("category", "work")
-        memory1.set_attribute("importance", 0.8)
-        memory1_id = db.save(memory1)
-        print(f"Created memory: Meeting Notes (ID: {memory1_id})")
+        # Create a simple bug fixing workflow with connected memories
         
-        # Memory 2: Shopping list
-        embeddings2 = np.array([0.8, 0.1, 0.0, 0.1], dtype=np.float32)
-        memory2 = MemoryNode(embeddings2)
-        memory2.set_attribute("title", "Shopping List")
-        memory2.set_attribute("category", "personal")
-        memory2.set_attribute("importance", 0.4)
-        memory2_id = db.save(memory2)
-        print(f"Created memory: Shopping List (ID: {memory2_id})")
+        # Memory 1: Bug Report
+        bug_report = MemoryNode(np.array([0.82, 0.41, 0.33, 0.25], dtype=np.float32))
+        bug_report.set_attribute("memory_type", "bug_report")
+        bug_report.set_attribute("title", "NullPointerException in UserService.java")
+        bug_report.set_attribute("content", "NullPointerException at line 45")
+        bug_report_id = db.save(bug_report)
         
-        # Memory 3: Project idea
-        embeddings3 = np.array([0.2, 0.4, 0.4, 0.0], dtype=np.float32)
-        memory3 = MemoryNode(embeddings3)
-        memory3.set_attribute("title", "Project Idea")
-        memory3.set_attribute("category", "work")
-        memory3.set_attribute("importance", 0.9)
-        memory3_id = db.save(memory3)
-        print(f"Created memory: Project Idea (ID: {memory3_id})")
+        # Memory 2: Bug Analysis
+        analysis = MemoryNode(np.array([0.85, 0.44, 0.30, 0.22], dtype=np.float32))
+        analysis.set_attribute("memory_type", "analysis_result")
+        analysis.set_attribute("title", "Root Cause Analysis")
+        analysis.set_attribute("content", "userRepository is null")
+        analysis_id = db.save(analysis)
         
-        # List all memories
-        all_ids = db.list_all()
-        print(f"\nDatabase contains {len(all_ids)} memories")
+        # Memory 3: Solution Implementation
+        implementation = MemoryNode(np.array([0.76, 0.48, 0.37, 0.31], dtype=np.float32))
+        implementation.set_attribute("memory_type", "code_snippet")
+        implementation.set_attribute("title", "Constructor Implementation")
+        implementation.set_attribute("content", "public UserService(UserRepository repo) { this.userRepository = repo; }")
+        implementation_id = db.save(implementation)
         
-        # Vector similarity search
-        print("\nPerforming vector similarity search...")
-        query_vector = np.array([0.15, 0.35, 0.45, 0.05], dtype=np.float32)
+        # Memory 4: Verification
+        verification = MemoryNode(np.array([0.72, 0.45, 0.33, 0.35], dtype=np.float32))
+        verification.set_attribute("memory_type", "testing_outcome")
+        verification.set_attribute("title", "Fix Verification")
+        verification.set_attribute("success", True)
+        verification_id = db.save(verification)
         
-        results = db.search_similar(query_vector, limit=5, threshold=0.0)
-        print(f"Found {len(results)} similar memories:")
+        # Connect these memories to form a workflow
+        bug_report = db.load(bug_report_id)
+        bug_report.add_connection(analysis_id, "led_to")
+        db.save(bug_report)
+        
+        analysis = db.load(analysis_id)
+        analysis.add_connection(implementation_id, "led_to")
+        db.save(analysis)
+        
+        implementation = db.load(implementation_id)
+        implementation.add_connection(verification_id, "verified_by")
+        db.save(implementation)
+        
+        # Demonstrate vector similarity search
+        print("\nSearching for similar bug reports...")
+        new_bug_vector = np.array([0.80, 0.43, 0.32, 0.28], dtype=np.float32)
+        results = db.search_similar(new_bug_vector, limit=2, threshold=0.0)
         
         for memory_id, similarity in results:
             memory = db.load(memory_id)
-            print(f"  {memory.get_attribute('title')} (similarity: {similarity:.4f})")
+            print(f"  {memory.get_attribute('title')} ({memory.get_attribute('memory_type')}) - Similarity: {similarity:.4f}")
         
-        print("\nEngramDB Python SDK demo complete!")
+        # Demonstrate attribute filtering
+        print("\nFinding all code snippets:")
+        type_filter = AttributeFilter.equals("memory_type", "code_snippet")
+        query_results = db.query().with_attribute_filter(type_filter).execute()
+        
+        for memory in query_results:
+            print(f"  {memory.get_attribute('title')}")
+            print(f"    Content: {memory.get_attribute('content')}")
+        
+        # Demonstrate connection traversal
+        print("\nTracing the bug fixing workflow:")
+        current_memory = db.load(bug_report_id)
+        print(f"Step 1: {current_memory.get_attribute('title')}")
+        
+        step = 2
+        while True:
+            connections = current_memory.get_connections()
+            if not connections:
+                break
+                
+            next_id = connections[0][0]
+            next_memory = db.load(next_id)
+            print(f"Step {step}: {next_memory.get_attribute('title')}")
+            
+            current_memory = next_memory
+            step += 1
+        
+        print("\nEngramDB AI Coding Agent example complete!")
     except Exception as e:
         print(f"Error: {e}")
 

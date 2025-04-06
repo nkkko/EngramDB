@@ -1017,7 +1017,7 @@ def delete_all_memories():
 
 @app.route('/load_example_dataset', methods=['POST'])
 def load_example_dataset():
-    """Load example dataset with predefined memories and connections."""
+    """Load realistic example dataset with AI Coding Agent bug fixing workflow including multiple attempts."""
     try:
         # First, clear any existing memories
         try:
@@ -1032,85 +1032,493 @@ def load_example_dataset():
                 except Exception:
                     pass
         
-        # Create example memory nodes
+        # Create memories for AI Coding Agent bug fixing workflow
+        # This will be a complex, realistic bug fixing process with:
+        # - Initial analysis
+        # - Failed attempt 1 (wrong solution path)
+        # - Failed attempt 2 (partial solution)
+        # - Deeper investigation
+        # - Final successful solution
         
-        # Work-related memories
+        #--------------------- INITIAL BUG REPORT AND ANALYSIS ---------------------#
+        
+        # Memory 1: Bug Report
         if EMBEDDING_MODEL_AVAILABLE:
-            # Use embedding model for generation
-            work_memory = MemoryNode(generate_embedding_for_memory(
-                "Team meeting notes: Discussed project timeline, assigned tasks to team members, and set deadlines.",
-                "work"
+            bug_report = MemoryNode(generate_embedding_for_memory(
+                "NullPointerException in UserService.java at line 45 when calling getUserDetails() in production environment",
+                "bug_report"
             ).tolist())
         else:
-            # Use example embeddings
-            work_memory = MemoryNode([0.1, 0.2, 0.3, 0.4, 0.5])
+            bug_report = MemoryNode([0.82, 0.41, 0.33, 0.25, 0.1])
             
-        work_memory.set_attribute('title', 'Team Meeting Notes')
-        work_memory.set_attribute('category', 'work')
-        work_memory.set_attribute('importance', 0.8)
-        work_memory.set_attribute('content', "Team meeting notes: Discussed project timeline, assigned tasks to team members, and set deadlines.")
-        work_id = db.save(work_memory)
+        bug_report.set_attribute('title', 'NullPointerException in UserService')
+        bug_report.set_attribute('category', 'bug_report')
+        bug_report.set_attribute('importance', 0.9)
+        bug_report.set_attribute('content', "NullPointerException in UserService.java at line 45 when calling getUserDetails() in production environment. Error occurs inconsistently, making it difficult to reproduce reliably.")
+        bug_report.set_attribute('memory_type', "bug_report")
+        bug_report.set_attribute('module', "user-management")
+        bug_report.set_attribute('timestamp', "2025-04-01T09:15:00")
+        bug_report_id = db.save(bug_report)
         
-        # Research-related memories
+        # Memory 2: Initial Codebase Exploration
         if EMBEDDING_MODEL_AVAILABLE:
-            research_memory = MemoryNode(generate_embedding_for_memory(
-                "Research findings: New algorithms for efficient vector search in high-dimensional spaces.", 
-                "research"
+            codebase_memory = MemoryNode(generate_embedding_for_memory(
+                "Traversed UserService.java, identified dependencies on UserRepository.java and AuthorizationService.java", 
+                "codebase_structure"
             ).tolist())
         else:
-            research_memory = MemoryNode([0.5, 0.4, 0.3, 0.2, 0.1])
+            codebase_memory = MemoryNode([0.74, 0.52, 0.28, 0.31, 0.15])
             
-        research_memory.set_attribute('title', 'Vector Search Research')
-        research_memory.set_attribute('category', 'research')
-        research_memory.set_attribute('importance', 0.9)
-        research_memory.set_attribute('content', "Research findings: New algorithms for efficient vector search in high-dimensional spaces.")
-        research_id = db.save(research_memory)
+        codebase_memory.set_attribute('title', 'UserService Class Structure')
+        codebase_memory.set_attribute('category', 'codebase_structure')
+        codebase_memory.set_attribute('importance', 0.7)
+        codebase_memory.set_attribute('content', "Traversed UserService.java and found dependencies on UserRepository.java and AuthorizationService.java. Line 45 contains: return userRepository.findUser(id).getDetails();")
+        codebase_memory.set_attribute('memory_type', "codebase_structure")
+        codebase_memory.set_attribute('module', "user-management")
+        codebase_memory.set_attribute('timestamp', "2025-04-01T09:20:00")
+        codebase_id = db.save(codebase_memory)
         
-        # Personal-related memories
+        # Memory 3: Initial Bug Analysis
         if EMBEDDING_MODEL_AVAILABLE:
-            personal_memory = MemoryNode(generate_embedding_for_memory(
-                "Personal todo: Go grocery shopping, pay bills, and call mom this weekend.",
-                "personal"
+            analysis_memory = MemoryNode(generate_embedding_for_memory(
+                "Possible reasons for NullPointerException: 1) userRepository is null, 2) findUser() returned null, 3) user.getDetails() called on null object",
+                "analysis_result"
             ).tolist())
         else:
-            personal_memory = MemoryNode([0.3, 0.3, 0.6, 0.4, 0.2])
+            analysis_memory = MemoryNode([0.85, 0.44, 0.30, 0.22, 0.18])
             
-        personal_memory.set_attribute('title', 'Weekend Tasks')
-        personal_memory.set_attribute('category', 'personal')
-        personal_memory.set_attribute('importance', 0.6)
-        personal_memory.set_attribute('content', "Personal todo: Go grocery shopping, pay bills, and call mom this weekend.")
-        personal_id = db.save(personal_memory)
+        analysis_memory.set_attribute('title', 'Initial Root Cause Analysis')
+        analysis_memory.set_attribute('category', 'analysis_result')
+        analysis_memory.set_attribute('importance', 0.85)
+        analysis_memory.set_attribute('content', "Three possible causes for NullPointerException:\n1. userRepository field is null\n2. findUser() returned null\n3. getDetails() called on null user object\n\nSince error occurs inconsistently, most likely scenario is that findUser() sometimes returns null.")
+        analysis_memory.set_attribute('memory_type', "analysis_result")
+        analysis_memory.set_attribute('module', "user-management")
+        analysis_memory.set_attribute('confidence', 0.65)
+        analysis_memory.set_attribute('timestamp', "2025-04-01T09:30:00")
+        initial_analysis_id = db.save(analysis_memory)
         
-        # Work-related memories with connection to research
+        #--------------------- FAILED ATTEMPT 1 (WRONG SOLUTION PATH) ---------------------#
+        
+        # Memory 4: First Solution Attempt (incorrect hypothesis)
         if EMBEDDING_MODEL_AVAILABLE:
-            project_memory = MemoryNode(generate_embedding_for_memory(
-                "Project application: Implemented new vector search algorithm into our product for faster querying.",
-                "work"
+            solution1_memory = MemoryNode(generate_embedding_for_memory(
+                "Add null check before calling getDetails() to prevent NullPointerException when findUser() returns null",
+                "proposed_fix"
             ).tolist())
         else: 
-            project_memory = MemoryNode([0.2, 0.7, 0.3, 0.6, 0.2])
+            solution1_memory = MemoryNode([0.79, 0.51, 0.34, 0.28, 0.22])
             
-        project_memory.set_attribute('title', 'Project Implementation')
-        project_memory.set_attribute('category', 'work')
-        project_memory.set_attribute('importance', 0.85)
-        project_memory.set_attribute('content', "Project application: Implemented new vector search algorithm into our product for faster querying.")
-        project_id = db.save(project_memory)
+        solution1_memory.set_attribute('title', 'Null Check Fix (Attempt 1)')
+        solution1_memory.set_attribute('category', 'proposed_fix')
+        solution1_memory.set_attribute('importance', 0.8)
+        solution1_memory.set_attribute('content', "Add null check before calling getDetails() to prevent NullPointerException when findUser() returns null:\n\nUser user = userRepository.findUser(id);\nreturn user != null ? user.getDetails() : null;")
+        solution1_memory.set_attribute('memory_type', "proposed_fix")
+        solution1_memory.set_attribute('module', "user-management")
+        solution1_memory.set_attribute('estimated_success', 0.7)
+        solution1_memory.set_attribute('timestamp', "2025-04-01T09:45:00")
+        solution1_id = db.save(solution1_memory)
         
-        # Create connections between memories
+        # Memory 5: First Implementation
+        if EMBEDDING_MODEL_AVAILABLE:
+            implementation1_memory = MemoryNode(generate_embedding_for_memory(
+                "User user = userRepository.findUser(id); return user != null ? user.getDetails() : null;",
+                "code_snippet"
+            ).tolist())
+        else: 
+            implementation1_memory = MemoryNode([0.76, 0.48, 0.37, 0.31, 0.25])
+            
+        implementation1_memory.set_attribute('title', 'Null Check Implementation')
+        implementation1_memory.set_attribute('category', 'code_snippet')
+        implementation1_memory.set_attribute('importance', 0.8)
+        implementation1_memory.set_attribute('content', """// Modified getUserDetails() method
+public UserDetails getUserDetails(String id) {
+    User user = userRepository.findUser(id);
+    return user != null ? user.getDetails() : null;
+}""")
+        implementation1_memory.set_attribute('memory_type', "code_snippet")
+        implementation1_memory.set_attribute('module', "user-management")
+        implementation1_memory.set_attribute('file', "UserService.java")
+        implementation1_memory.set_attribute('timestamp', "2025-04-01T10:00:00")
+        implementation1_id = db.save(implementation1_memory)
         
-        # Research → Project (causation)
-        db.connect(research_id, project_id, "Causation", 0.9)
+        # Memory 6: First Verification (failed)
+        if EMBEDDING_MODEL_AVAILABLE:
+            verification1_memory = MemoryNode(generate_embedding_for_memory(
+                "Fix partially successful but NullPointerException still occurs in some edge cases. Error now points to line 32 in same file.",
+                "testing_outcome"
+            ).tolist())
+        else: 
+            verification1_memory = MemoryNode([0.72, 0.45, 0.33, 0.35, 0.28])
+            
+        verification1_memory.set_attribute('title', 'Failed Verification (Attempt 1)')
+        verification1_memory.set_attribute('category', 'testing_outcome')
+        verification1_memory.set_attribute('importance', 0.8)
+        verification1_memory.set_attribute('content', "Fix partially successful but NullPointerException still occurs in some edge cases. Error now points to line 32 in same file: userRepository.updateLastAccess(id). The first hypothesis was incomplete - userRepository itself may be null.")
+        verification1_memory.set_attribute('memory_type', "testing_outcome")
+        verification1_memory.set_attribute('module', "user-management")
+        verification1_memory.set_attribute('success', False)
+        verification1_memory.set_attribute('timestamp', "2025-04-01T10:30:00")
+        verification1_id = db.save(verification1_memory)
         
-        # Work → Project (association)
-        db.connect(work_id, project_id, "Association", 0.7)
+        #--------------------- FAILED ATTEMPT 2 (MISSING DEEPER ISSUE) ---------------------#
         
-        # Project → Personal (custom)
-        db.connect(project_id, personal_id, "PrecededBy", 0.4)
+        # Memory 7: Second Analysis (deeper but still incomplete)
+        if EMBEDDING_MODEL_AVAILABLE:
+            analysis2_memory = MemoryNode(generate_embedding_for_memory(
+                "Main issue: userRepository itself is null. Need to check how UserRepository is initialized. May need constructor injection or null checks at all usages.",
+                "analysis_result"
+            ).tolist())
+        else:
+            analysis2_memory = MemoryNode([0.86, 0.41, 0.32, 0.24, 0.19])
+            
+        analysis2_memory.set_attribute('title', 'Revised Root Cause Analysis')
+        analysis2_memory.set_attribute('category', 'analysis_result')
+        analysis2_memory.set_attribute('importance', 0.9)
+        analysis2_memory.set_attribute('content', "Main issue appears to be that userRepository itself is null. Need to investigate how UserRepository is initialized in UserService class. This is likely caused by incorrect dependency injection. Error occurs inconsistently because it may depend on initialization order.")
+        analysis2_memory.set_attribute('memory_type', "analysis_result")
+        analysis2_memory.set_attribute('module', "user-management")
+        analysis2_memory.set_attribute('confidence', 0.85)
+        analysis2_memory.set_attribute('timestamp', "2025-04-01T11:00:00")
+        analysis2_id = db.save(analysis2_memory)
         
-        # Personal → Work (sequence)
-        db.connect(personal_id, work_id, "Sequence", 0.5)
+        # Memory 8: Deeper Code Exploration
+        if EMBEDDING_MODEL_AVAILABLE:
+            codeExplore2_memory = MemoryNode(generate_embedding_for_memory(
+                "UserService.java lacks proper constructor injection. It uses field injection without initialization. UserRepository only initialized by setter method setUserRepository() which may not be called consistently.",
+                "codebase_structure"
+            ).tolist())
+        else:
+            codeExplore2_memory = MemoryNode([0.73, 0.50, 0.29, 0.30, 0.16])
+            
+        codeExplore2_memory.set_attribute('title', 'Dependency Injection Pattern Analysis')
+        codeExplore2_memory.set_attribute('category', 'codebase_structure')
+        codeExplore2_memory.set_attribute('importance', 0.85)
+        codeExplore2_memory.set_attribute('content', "UserService.java uses field injection without proper initialization. It has a @Autowired annotation on userRepository field but no constructor injection. May indicate configuration issue. Found setter method setUserRepository() that gets called by Spring in some contexts but not others.")
+        codeExplore2_memory.set_attribute('memory_type', "codebase_structure")
+        codeExplore2_memory.set_attribute('module', "user-management")
+        codeExplore2_memory.set_attribute('timestamp', "2025-04-01T11:15:00")
+        codeExplore2_id = db.save(codeExplore2_memory)
         
-        flash("Example dataset loaded successfully! 4 memories and 4 connections created.", "success")
+        # Memory 9: Second Solution Attempt (closer but incomplete)
+        if EMBEDDING_MODEL_AVAILABLE:
+            solution2_memory = MemoryNode(generate_embedding_for_memory(
+                "Add null checks for userRepository before every use, falling back to empty results when null",
+                "proposed_fix"
+            ).tolist())
+        else: 
+            solution2_memory = MemoryNode([0.78, 0.53, 0.32, 0.29, 0.23])
+            
+        solution2_memory.set_attribute('title', 'Defensive Null Checks (Attempt 2)')
+        solution2_memory.set_attribute('category', 'proposed_fix')
+        solution2_memory.set_attribute('importance', 0.8)
+        solution2_memory.set_attribute('content', "Add comprehensive null checks for userRepository before every use, falling back to empty results when null. This should prevent the NullPointerException but doesn't address the root cause of userRepository not being properly initialized.")
+        solution2_memory.set_attribute('memory_type', "proposed_fix")
+        solution2_memory.set_attribute('module', "user-management")
+        solution2_memory.set_attribute('estimated_success', 0.75)
+        solution2_memory.set_attribute('timestamp', "2025-04-01T11:30:00")
+        solution2_id = db.save(solution2_memory)
+        
+        # Memory 10: Second Implementation
+        if EMBEDDING_MODEL_AVAILABLE:
+            implementation2_memory = MemoryNode(generate_embedding_for_memory(
+                "Added null checks for userRepository before all method calls to prevent NullPointerException",
+                "code_snippet"
+            ).tolist())
+        else: 
+            implementation2_memory = MemoryNode([0.75, 0.49, 0.38, 0.33, 0.24])
+            
+        implementation2_memory.set_attribute('title', 'Defensive Null Checks Implementation')
+        implementation2_memory.set_attribute('category', 'code_snippet')
+        implementation2_memory.set_attribute('importance', 0.8)
+        implementation2_memory.set_attribute('content', """// Modified getUserDetails() with comprehensive null check
+public UserDetails getUserDetails(String id) {
+    if (userRepository == null) {
+        logger.warn("UserRepository is null when calling getUserDetails");
+        return null;
+    }
+    User user = userRepository.findUser(id);
+    return user != null ? user.getDetails() : null;
+}
+
+// Also modified updateLastAccess() with null check
+public void updateLastAccess(String id) {
+    if (userRepository == null) {
+        logger.warn("UserRepository is null when calling updateLastAccess");
+        return;
+    }
+    userRepository.updateLastAccess(id);
+}""")
+        implementation2_memory.set_attribute('memory_type', "code_snippet")
+        implementation2_memory.set_attribute('module', "user-management")
+        implementation2_memory.set_attribute('file', "UserService.java")
+        implementation2_memory.set_attribute('timestamp', "2025-04-01T11:45:00")
+        implementation2_id = db.save(implementation2_memory)
+        
+        # Memory 11: Second Verification (better but still issues)
+        if EMBEDDING_MODEL_AVAILABLE:
+            verification2_memory = MemoryNode(generate_embedding_for_memory(
+                "NullPointerExceptions fixed but application misbehaves due to returning null instead of finding users. Need proper initialization instead of defensive coding.",
+                "testing_outcome"
+            ).tolist())
+        else: 
+            verification2_memory = MemoryNode([0.71, 0.46, 0.34, 0.36, 0.29])
+            
+        verification2_memory.set_attribute('title', 'Partial Success Verification (Attempt 2)')
+        verification2_memory.set_attribute('category', 'testing_outcome')
+        verification2_memory.set_attribute('importance', 0.85)
+        verification2_memory.set_attribute('content', "NullPointerExceptions no longer occur, but application misbehaves due to silently returning null instead of properly finding users. Logs show frequent 'UserRepository is null' warnings. Fix treats symptoms but doesn't address root cause: proper dependency initialization.")
+        verification2_memory.set_attribute('memory_type', "testing_outcome")
+        verification2_memory.set_attribute('module', "user-management")
+        verification2_memory.set_attribute('success', False)
+        verification2_memory.set_attribute('timestamp', "2025-04-01T13:00:00")
+        verification2_id = db.save(verification2_memory)
+        
+        #--------------------- DEEPER INVESTIGATION ---------------------#
+        
+        # Memory 12: Dependency Injection Investigation
+        if EMBEDDING_MODEL_AVAILABLE:
+            investigation_memory = MemoryNode(generate_embedding_for_memory(
+                "Investigated Spring dependency injection patterns. Field injection with @Autowired is unreliable compared to constructor injection. Best practice is to use constructor injection to ensure all dependencies initialized at creation.",
+                "analysis_result"
+            ).tolist())
+        else:
+            investigation_memory = MemoryNode([0.88, 0.43, 0.29, 0.25, 0.17])
+            
+        investigation_memory.set_attribute('title', 'Dependency Injection Investigation')
+        investigation_memory.set_attribute('category', 'analysis_result')
+        investigation_memory.set_attribute('importance', 0.95)
+        investigation_memory.set_attribute('content', "Researched Spring dependency injection patterns. Field-level @Autowired annotation is less reliable than constructor injection. Spring documentation recommends constructor injection to ensure all required dependencies are initialized at object creation time. Field injection can lead to partially initialized objects if circular dependencies exist.")
+        investigation_memory.set_attribute('memory_type', "analysis_result")
+        investigation_memory.set_attribute('module', "user-management")
+        investigation_memory.set_attribute('confidence', 0.95)
+        investigation_memory.set_attribute('timestamp', "2025-04-01T14:30:00")
+        investigation_id = db.save(investigation_memory)
+        
+        # Memory 13: Application Context Investigation
+        if EMBEDDING_MODEL_AVAILABLE:
+            context_memory = MemoryNode(generate_embedding_for_memory(
+                "Traced UserService lifecycle in application context. UserService sometimes created by manual instantiation without dependency injection. Found places where 'new UserService()' is called directly.",
+                "analysis_result"
+            ).tolist())
+        else:
+            context_memory = MemoryNode([0.84, 0.45, 0.32, 0.20, 0.16])
+            
+        context_memory.set_attribute('title', 'Application Context Analysis')
+        context_memory.set_attribute('category', 'analysis_result')
+        context_memory.set_attribute('importance', 0.95)
+        context_memory.set_attribute('content', "Traced UserService lifecycle in application context. Found critical issue: UserService is sometimes created by manual instantiation without dependency injection. Found code in AdminController.java where 'new UserService()' is called directly, bypassing Spring's dependency injection. This explains the inconsistent failures.")
+        context_memory.set_attribute('memory_type', "analysis_result")
+        context_memory.set_attribute('module', "user-management")
+        context_memory.set_attribute('confidence', 0.98)
+        context_memory.set_attribute('timestamp', "2025-04-01T15:30:00")
+        context_id = db.save(context_memory)
+        
+        #--------------------- FINAL SOLUTION ---------------------#
+        
+        # Memory 14: Comprehensive Solution
+        if EMBEDDING_MODEL_AVAILABLE:
+            final_solution_memory = MemoryNode(generate_embedding_for_memory(
+                "Two-part solution: 1) Refactor UserService to use constructor injection, 2) Remove direct instantiation in AdminController and use proper dependency injection",
+                "proposed_fix"
+            ).tolist())
+        else: 
+            final_solution_memory = MemoryNode([0.89, 0.50, 0.33, 0.26, 0.21])
+            
+        final_solution_memory.set_attribute('title', 'Complete Dependency Injection Fix')
+        final_solution_memory.set_attribute('category', 'proposed_fix')
+        final_solution_memory.set_attribute('importance', 0.95)
+        final_solution_memory.set_attribute('content', "Two-part comprehensive solution:\n1) Refactor UserService to use constructor injection instead of field injection\n2) Fix AdminController to properly inject UserService instead of creating with 'new'\n\nThis addresses the root cause by ensuring userRepository is always initialized before UserService methods are called.")
+        final_solution_memory.set_attribute('memory_type', "proposed_fix")
+        final_solution_memory.set_attribute('module', "user-management")
+        final_solution_memory.set_attribute('estimated_success', 0.98)
+        final_solution_memory.set_attribute('timestamp', "2025-04-01T16:00:00")
+        final_solution_id = db.save(final_solution_memory)
+        
+        # Memory 15: UserService Implementation
+        if EMBEDDING_MODEL_AVAILABLE:
+            final_impl1_memory = MemoryNode(generate_embedding_for_memory(
+                "Refactored UserService to use constructor injection for all dependencies including UserRepository and AuthorizationService",
+                "code_snippet"
+            ).tolist())
+        else: 
+            final_impl1_memory = MemoryNode([0.77, 0.52, 0.36, 0.30, 0.23])
+            
+        final_impl1_memory.set_attribute('title', 'UserService Constructor Injection')
+        final_impl1_memory.set_attribute('category', 'code_snippet')
+        final_impl1_memory.set_attribute('importance', 0.9)
+        final_impl1_memory.set_attribute('content', """// Refactored UserService with constructor injection
+@Service
+public class UserService {
+    private final UserRepository userRepository;
+    private final AuthorizationService authService;
+    private final Logger logger = LoggerFactory.getLogger(UserService.class);
+    
+    @Autowired
+    public UserService(UserRepository userRepository, AuthorizationService authService) {
+        this.userRepository = userRepository;
+        this.authService = authService;
+    }
+    
+    public UserDetails getUserDetails(String id) {
+        User user = userRepository.findUser(id);
+        return user != null ? user.getDetails() : null;
+    }
+    
+    public void updateLastAccess(String id) {
+        userRepository.updateLastAccess(id);
+    }
+}""")
+        final_impl1_memory.set_attribute('memory_type', "code_snippet")
+        final_impl1_memory.set_attribute('module', "user-management")
+        final_impl1_memory.set_attribute('file', "UserService.java")
+        final_impl1_memory.set_attribute('timestamp', "2025-04-01T16:15:00")
+        final_impl1_id = db.save(final_impl1_memory)
+        
+        # Memory 16: AdminController Implementation
+        if EMBEDDING_MODEL_AVAILABLE:
+            final_impl2_memory = MemoryNode(generate_embedding_for_memory(
+                "Fixed AdminController to use dependency injection for UserService instead of direct instantiation",
+                "code_snippet"
+            ).tolist())
+        else: 
+            final_impl2_memory = MemoryNode([0.75, 0.51, 0.39, 0.32, 0.24])
+            
+        final_impl2_memory.set_attribute('title', 'AdminController Dependency Fix')
+        final_impl2_memory.set_attribute('category', 'code_snippet')
+        final_impl2_memory.set_attribute('importance', 0.9)
+        final_impl2_memory.set_attribute('content', """// Fixed AdminController to properly inject UserService
+@Controller
+@RequestMapping("/admin")
+public class AdminController {
+    private final UserService userService;
+    
+    @Autowired
+    public AdminController(UserService userService) {
+        this.userService = userService;
+    }
+    
+    @GetMapping("/user/{id}")
+    public String getUserDetails(@PathVariable String id, Model model) {
+        // No longer using "new UserService()" here
+        UserDetails details = userService.getUserDetails(id);
+        model.addAttribute("userDetails", details);
+        return "user/details";
+    }
+}""")
+        final_impl2_memory.set_attribute('memory_type', "code_snippet")
+        final_impl2_memory.set_attribute('module', "user-management")
+        final_impl2_memory.set_attribute('file', "AdminController.java")
+        final_impl2_memory.set_attribute('timestamp', "2025-04-01T16:30:00")
+        final_impl2_id = db.save(final_impl2_memory)
+        
+        # Memory 17: Final Verification
+        if EMBEDDING_MODEL_AVAILABLE:
+            final_verification_memory = MemoryNode(generate_embedding_for_memory(
+                "All tests pass. No NullPointerExceptions in production or testing. Dependency injection properly working in all contexts.",
+                "testing_outcome"
+            ).tolist())
+        else: 
+            final_verification_memory = MemoryNode([0.73, 0.47, 0.32, 0.34, 0.27])
+            
+        final_verification_memory.set_attribute('title', 'Successful Final Verification')
+        final_verification_memory.set_attribute('category', 'testing_outcome')
+        final_verification_memory.set_attribute('importance', 0.95)
+        final_verification_memory.set_attribute('content', "All tests pass. No NullPointerExceptions in comprehensive test suite or production monitoring. Dependency injection properly working in all contexts. Added integration test to specifically verify object creation paths. Fix addresses root cause by ensuring proper initialization in all contexts.")
+        final_verification_memory.set_attribute('memory_type', "testing_outcome")
+        final_verification_memory.set_attribute('module', "user-management")
+        final_verification_memory.set_attribute('success', True)
+        final_verification_memory.set_attribute('timestamp', "2025-04-01T17:30:00")
+        final_verification_id = db.save(final_verification_memory)
+        
+        # Memory 18: Learning Reflection
+        if EMBEDDING_MODEL_AVAILABLE:
+            reflection_memory = MemoryNode(generate_embedding_for_memory(
+                "Analysis of bug fixing process. Key learning: Field injection can cause subtle initialization problems. Always use constructor injection for required dependencies. Integration tests should verify object creation paths.",
+                "reflection"
+            ).tolist())
+        else: 
+            reflection_memory = MemoryNode([0.81, 0.55, 0.35, 0.29, 0.20])
+            
+        reflection_memory.set_attribute('title', 'Dependency Injection Best Practices')
+        reflection_memory.set_attribute('category', 'reflection')
+        reflection_memory.set_attribute('importance', 0.9)
+        reflection_memory.set_attribute('content', """Key learnings from this bug fix:
+1. Always use constructor injection over field injection for required dependencies
+2. Never directly instantiate objects that require dependency injection
+3. Create integration tests that verify all object creation paths
+4. Null checks are band-aids - fix the root cause of improper initialization
+5. Log when unexpected null values are encountered to help debugging
+
+This pattern of error is common in Spring applications where developers mix dependency injection with direct instantiation.""")
+        reflection_memory.set_attribute('memory_type', "reflection")
+        reflection_memory.set_attribute('module', "user-management")
+        reflection_memory.set_attribute('timestamp', "2025-04-01T18:00:00")
+        reflection_id = db.save(reflection_memory)
+        
+        #--------------------- CONNECTIONS BETWEEN MEMORIES ---------------------#
+        
+        # Initial workflow - using CAUSATION for "led to" relationships
+        db.connect(bug_report_id, codebase_id, "CAUSATION", 0.95)
+        db.connect(codebase_id, initial_analysis_id, "CAUSATION", 0.9)
+        
+        # First attempt (failure path)
+        db.connect(initial_analysis_id, solution1_id, "CAUSATION", 0.8)
+        db.connect(solution1_id, implementation1_id, "REFERENCE", 0.9)  # Implementation references solution
+        db.connect(implementation1_id, verification1_id, "CAUSATION", 0.9)  # Implementation causes verification results
+        db.connect(verification1_id, analysis2_id, "CAUSATION", 0.9)  # Failure caused revised analysis
+        
+        # Second attempt (partial success but failure)
+        db.connect(analysis2_id, codeExplore2_id, "CAUSATION", 0.9)  # Analysis caused deeper exploration
+        db.connect(codeExplore2_id, solution2_id, "CAUSATION", 0.9)
+        db.connect(solution2_id, implementation2_id, "REFERENCE", 0.9)  # Implementation references solution
+        db.connect(implementation2_id, verification2_id, "CAUSATION", 0.9)
+        db.connect(verification2_id, investigation_id, "CAUSATION", 0.9)  # Partial failure caused deeper investigation
+        
+        # Deep investigation
+        db.connect(investigation_id, context_id, "CAUSATION", 0.95)
+        
+        # Final solution - using various relationship types appropriately
+        db.connect(context_id, final_solution_id, "CAUSATION", 0.95)
+        db.connect(final_solution_id, final_impl1_id, "REFERENCE", 0.9)  # Implementation references solution
+        db.connect(final_solution_id, final_impl2_id, "REFERENCE", 0.9)  # Implementation references solution
+        db.connect(final_impl1_id, final_verification_id, "CAUSATION", 0.9)  # Implementation caused verification results
+        db.connect(final_impl2_id, final_verification_id, "CAUSATION", 0.9)  # Implementation caused verification results
+        db.connect(final_verification_id, reflection_id, "CAUSATION", 0.9)  # Verification led to reflection
+        
+        # Direct connections showing relationship to original bug report - using REFERENCE
+        db.connect(bug_report_id, verification1_id, "REFERENCE", 0.4)  # Bug report referenced by verification
+        db.connect(bug_report_id, verification2_id, "REFERENCE", 0.7)  # Bug report referenced by verification
+        db.connect(bug_report_id, final_verification_id, "REFERENCE", 0.98)  # Bug report referenced by verification
+        
+        # Cross-connections between analysis steps - using SEQUENCE for step improvements
+        db.connect(initial_analysis_id, analysis2_id, "SEQUENCE", 0.7)  # Analysis steps in sequence
+        db.connect(analysis2_id, investigation_id, "SEQUENCE", 0.8)  # Analysis steps in sequence
+        db.connect(investigation_id, final_solution_id, "CAUSATION", 0.9)  # Investigation informed solution
+        
+        # Alternative path connections - using ASSOCIATION for alternative approaches
+        db.connect(solution1_id, solution2_id, "ASSOCIATION", 0.6)  # Associated alternative solutions
+        db.connect(solution2_id, final_solution_id, "ASSOCIATION", 0.8)  # Associated alternative solutions
+        
+        # Implementation relationships - using SEQUENCE for progressive improvements
+        db.connect(implementation1_id, implementation2_id, "SEQUENCE", 0.7)  # Implementation sequence/progression
+        db.connect(implementation2_id, final_impl1_id, "SEQUENCE", 0.9)  # Implementation sequence/progression
+        
+        # Solution contains implementations - using CONTAINS relationship
+        db.connect(final_solution_id, final_impl1_id, "CONTAINS", 0.9)  # Solution contains implementation 1
+        db.connect(final_solution_id, final_impl2_id, "CONTAINS", 0.9)  # Solution contains implementation 2
+        
+        # Memory structure relationships - using PART_OF
+        db.connect(implementation1_id, solution1_id, "PART_OF", 0.9)  # Implementation is part of solution
+        db.connect(implementation2_id, solution2_id, "PART_OF", 0.9)  # Implementation is part of solution
+        
+        # Temporal relationships - using PREDECESSOR/SUCCESSOR
+        db.connect(verification1_id, verification2_id, "PREDECESSOR", 0.8)  # Verification 1 preceded verification 2
+        db.connect(verification2_id, final_verification_id, "PREDECESSOR", 0.8)  # Verification 2 preceded final verification
+        
+        # Lessons learned connection - using REFERENCE
+        db.connect(reflection_id, bug_report_id, "REFERENCE", 0.95)  # Reflection references original bug
+        
+        flash("AI Coding Agent dataset loaded successfully! Complex bug fixing workflow with multiple attempts and solution paths created.", "success")
     except Exception as e:
         flash(f"Error loading example dataset: {e}", "error")
         
