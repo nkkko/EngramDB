@@ -36,4 +36,6 @@ EngramDB is a database system that combines vector, graph, and temporal properti
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+© Copyright 2025, All Rights Reserved.
+
+**IMPORTANT**: All documentation materials in this directory are copyright protected and may not be reproduced or distributed without permission. These materials are NOT covered by the MIT license that applies to the core EngramDB software.

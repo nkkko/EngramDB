@@ -1,17 +1,21 @@
 # EngramDB Pitch Deck
 
+© Copyright 2025, All Rights Reserved.
+
+**IMPORTANT**: All presentation materials in this directory are copyright protected and may not be reproduced or distributed without permission. These materials are NOT covered by the MIT license that applies to the core EngramDB software.
+
 This directory contains the pitch deck for EngramDB created using Marp.
 
 ## Files
 
-- `engramdb_pitch.md` - The main pitch deck file in Marp Markdown format
+- `engramdb_pitch_deck.md` - The main pitch deck file in Marp Markdown format
 
 ## How to View
 
 1. Install Marp CLI: `npm install -g @marp-team/marp-cli`
-2. Generate PDF: `marp --pdf engramdb_pitch.md`
-3. Generate HTML: `marp --html engramdb_pitch.md`
-4. Present: `marp -p engramdb_pitch.md`
+2. Generate PDF: `marp --pdf engramdb_pitch_deck.md`
+3. Generate HTML: `marp --html engramdb_pitch_deck.md`
+4. Present: `marp -p engramdb_pitch_deck.md`
 
 ## Images Used
 
@@ -24,7 +28,7 @@ The pitch deck uses the following images:
 
 The pitch deck covers:
 - Problem statement
-- EngramDB introduction 
+- EngramDB introduction
 - Technical features
 - Architecture
 - Vector indexing capabilities

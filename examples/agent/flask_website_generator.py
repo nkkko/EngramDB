@@ -154,6 +154,9 @@ MEMORY_TYPE_REQUIREMENT = "requirement"
 MEMORY_TYPE_COMPONENT = "component"
 MEMORY_TYPE_MESSAGE = "message"
 
+# Add a blueprint to serve the generated website
+generated_site = Blueprint('generated_site', __name__, url_prefix='/generated')
+
 @dataclass
 class AgentContext:
     """Context object for the agent with database connection"""
@@ -412,6 +415,173 @@ USE THE FUNCTION CALLING CAPABILITY to store new requirements, create website co
     return prompt
 
 
+def register_generated_routes(context: AgentContext):
+    """
+    Dynamically register route handlers for the generated website
+    This makes the generated website available at /generated path
+    """
+    components = context.get_all_components()
+    
+    # Clear any existing routes in the blueprint
+    # Note: This is a workaround as Flask doesn't officially support dynamic route registration
+    if hasattr(generated_site, 'deferred_functions'):
+        generated_site.deferred_functions = []
+    
+    from flask import render_template_string, send_file, Response
+    from io import BytesIO
+    import importlib.util
+    import sys
+    import tempfile
+    
+    # Store templates, static files, and routes for dynamic serving
+    templates = {}
+    static_files = {}
+    main_app_code = None
+    models_code = None
+    forms_code = None
+    route_modules = []
+    route_files = {}
+    
+    # Register a default home route for the generated site
+    @generated_site.route('/')
+    def generated_home():
+        return render_template_string('''
+            <html>
+            <head>
+                <title>Generated Flask Website</title>
+                <style>
+                    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+                    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+                    .card { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px; }
+                </style>
+            </head>
+            <body>
+                <h1>Generated Flask Website</h1>
+                <p>This is your dynamically generated Flask application.</p>
+                
+                {% if routes %}
+                <div class="card">
+                    <h3>Available Routes:</h3>
+                    <ul>
+                    {% for route in routes %}
+                        <li><a href="{{ route }}">{{ route }}</a></li>
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if components %}
+                <div class="card">
+                    <h3>Generated Components:</h3>
+                    <ul>
+                    {% for comp in components %}
+                        <li><strong>{{ comp.name }}</strong> ({{ comp.type }}): {{ comp.description }}</li>
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </body>
+            </html>
+        ''', routes=generated_site.routes, components=components)
+    
+    # Process each component
+    for component in components:
+        name = component["name"]
+        comp_type = component["type"]
+        code = component["code"]
+        
+        try:
+            if comp_type == "template":
+                templates[name] = code
+                # Register a route to serve this template
+                @generated_site.route(f'/templates/{name}.html')
+                def serve_template(template_name=name):
+                    return render_template_string(templates.get(template_name, "Template not found"))
+            
+            elif comp_type == "static":
+                # Handle different static file types
+                if "css" in name.lower():
+                    mimetype = "text/css"
+                    static_files[f"{name}.css"] = (code, mimetype)
+                    path = f'/static/css/{name}.css'
+                elif "js" in name.lower() or "javascript" in name.lower():
+                    mimetype = "application/javascript"
+                    static_files[f"{name}.js"] = (code, mimetype)
+                    path = f'/static/js/{name}.js'
+                else:
+                    mimetype = "text/plain"
+                    static_files[f"{name}.txt"] = (code, mimetype)
+                    path = f'/static/{name}.txt'
+                
+                # Create a closure to capture the current values
+                def create_static_route(file_content, file_mimetype):
+                    @generated_site.route(path)
+                    def serve_static_file():
+                        return Response(file_content, mimetype=file_mimetype)
+                
+                create_static_route(code, mimetype)
+            
+            elif comp_type == "main":
+                main_app_code = code
+            
+            elif comp_type == "model":
+                models_code = code
+            
+            elif comp_type == "form":
+                forms_code = code
+                
+            elif comp_type == "route":
+                route_files[name] = code
+        
+        except Exception as e:
+            print(f"Error processing component '{name}' ({comp_type}): {e}")
+    
+    # Execute route code to register route handlers
+    if route_files:
+        # Create a temporary directory for route files
+        temp_dir = tempfile.mkdtemp()
+        sys.path.insert(0, temp_dir)
+        
+        # Create __init__.py to make it a package
+        with open(f"{temp_dir}/__init__.py", "w") as f:
+            f.write("")
+        
+        # Write route files to the temporary directory
+        for name, code in route_files.items():
+            file_path = f"{temp_dir}/{name}.py"
+            with open(file_path, "w") as f:
+                # Add imports and blueprint creation at the top
+                route_code = f"""
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+# Import generated blueprint
+import sys
+sys.path.append('{__file__}')
+from flask_website_generator import generated_site
+
+# Create a blueprint for this route module
+{name}_bp = Blueprint('{name}', __name__)
+
+{code}
+
+# Register this blueprint with the generated_site blueprint
+generated_site.register_blueprint({name}_bp)
+"""
+                f.write(route_code)
+            
+            # Import the route module
+            try:
+                module_name = name
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                route_modules.append(module)
+            except Exception as e:
+                print(f"Error importing route module '{name}': {e}")
+    
+    # Return available routes for display
+    return [rule.rule for rule in generated_site.url_map.iter_rules() 
+            if rule.endpoint != 'static' and not rule.rule.startswith('/generated/static')]
+
 def save_files_to_disk(context: AgentContext) -> Dict[str, Any]:
     """Save all components to disk"""
     components = context.get_all_components()
@@ -499,11 +669,17 @@ def save_files_to_disk(context: AgentContext) -> Dict[str, Any]:
             f.write("\n".join(sorted(list(current_reqs))))
         if str(req_path.relative_to(Path.cwd())) not in saved_files:
              saved_files.append(str(req_path.relative_to(Path.cwd())))
-
+    
+    # Register dynamic routes for the generated application
+    register_generated_routes(context)
+    
+    # Register the blueprint with the main app
+    if generated_site not in app.blueprints.values():
+        app.register_blueprint(generated_site)
 
     return {
         "success": True,
-        "message": f"Saved/Updated {len(saved_files)} files in {output_path}",
+        "message": f"Saved/Updated {len(saved_files)} files in {output_path} and registered dynamic routes",
         "files": saved_files
     }
 
@@ -903,10 +1079,12 @@ def run_cli():
 @app.route('/', methods=['GET', 'POST'])
 def home():
     """Home page - displays a form for user input or progress"""
+    # Initialize context to check if website has been generated
+    context = initialize_agent_context()
+    has_components = len(context.get_all_components()) > 0
+    
     if request.method == 'POST':
         user_input = request.form.get('user_input', '')
-        # Use the same context across requests in the web interface
-        context = initialize_agent_context()
         
         # Handle the 'save' shortcut for web interface
         if user_input.lower() == 'save':
@@ -923,7 +1101,12 @@ def home():
         files_saved_result = next((tc["result"] for tc in result.get("tool_calls", []) if tc["tool"] == "save_files"), None)
         files_saved_list = files_saved_result.get("files", []) if isinstance(files_saved_result, dict) else []
         save_message = files_saved_result.get("message", "") if isinstance(files_saved_result, dict) else ""
-
+        
+        # Check if we need to register routes (if components were just created)
+        if components_created and generated_site not in app.blueprints.values():
+            register_generated_routes(context)
+            app.register_blueprint(generated_site)
+            has_components = True
 
         return render_template_string('''
             <html>
@@ -934,6 +1117,10 @@ def home():
                     pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
                     .card { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px; }
                     .error { background: #ffebee; padding: 15px; border-radius: 5px; border-left: 5px solid #f44336; }
+                    .btn { display: inline-block; padding: 10px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px; margin-right: 10px; }
+                    .btn:hover { background: #45a049; }
+                    .btn-secondary { background: #2196F3; }
+                    .btn-secondary:hover { background: #0b7dda; }
                 </style>
             </head>
             <body>
@@ -972,14 +1159,20 @@ def home():
                      </ul>
                  </div>
                  {% endif %}
+                 
+                 <div style="margin-top: 20px;">
+                    <a href="/" class="btn">Ask something else</a>
+                    {% if has_website %}
+                    <a href="/generated" class="btn btn-secondary">View Generated Website</a>
+                    {% endif %}
+                 </div>
                 {% endif %}
 
-                <p><a href="/">Ask something else</a></p>
             </body>
             </html>
         ''', user_input=user_input, response=result["response"],
             components_created=components_created, files_saved_list=files_saved_list,
-            save_message=save_message, error=result.get("error"))
+            save_message=save_message, error=result.get("error"), has_website=has_components)
     else:
         api_key_warning = ""
         if not check_api_key_setup():
@@ -992,6 +1185,23 @@ def home():
                     <p>Or create a .env file (example created as .env.example).</p>
                 </div>
             '''
+        
+        # Check if we have a generated website to show
+        website_section = ""
+        if has_components:
+            # Register routes if components exist but blueprint not registered
+            if generated_site not in app.blueprints.values():
+                register_generated_routes(context)
+                app.register_blueprint(generated_site)
+            
+            website_section = '''
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 5px; border-left: 5px solid #4CAF50; margin-bottom: 20px;">
+                    <h3>✅ Generated Website Available</h3>
+                    <p>Your previously generated website is available at: 
+                       <a href="/generated" style="color: #2196F3; font-weight: bold;">/generated</a>
+                    </p>
+                </div>
+            '''
 
         return render_template_string('''
             <html>
@@ -1002,19 +1212,27 @@ def home():
                      textarea { width: 100%; height: 150px; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
                      button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1em; }
                      button:hover { background: #45a049; }
+                     .btn-secondary { display: inline-block; padding: 10px 15px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px; margin-left: 10px; }
+                     .btn-secondary:hover { background: #0b7dda; }
                  </style>
             </head>
             <body>
                 <h1>EngramDB Flask Website Generator</h1>
                 {{ api_key_warning|safe }}
+                {{ website_section|safe }}
                 <p>Describe the Flask app you want to create (or type 'save'):</p>
                 <form method="post">
                     <textarea name="user_input" placeholder="E.g., I need a simple blog with user authentication..."></textarea>
-                    <button type="submit">Generate</button>
+                    <div style="display: flex; align-items: center;">
+                        <button type="submit">Generate</button>
+                        {% if has_website %}
+                        <a href="/generated" class="btn-secondary">View Generated Website</a>
+                        {% endif %}
+                    </div>
                 </form>
             </body>
             </html>
-        ''', api_key_warning=api_key_warning)
+        ''', api_key_warning=api_key_warning, website_section=website_section, has_website=has_components)
 
 @app.route('/api/message', methods=['POST'])
 def api_message():

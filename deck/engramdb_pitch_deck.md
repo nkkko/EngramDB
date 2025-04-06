@@ -43,7 +43,7 @@ style: |
 # **EngramDB**
 ## A purpose-built graph vector database for AI agent memory
 
-![bg right:40% 90%](/Users/nikola/dev/engramdb/assets/logo/light.png)
+![bg right:40% 90%](../assets/logo/light.png)
 
 ---
 
@@ -158,7 +158,7 @@ style: |
 
 ---
 
-![bg 70%](/Users/nikola/dev/engramdb/assets/engram_web_graph.jpg)
+![bg 70%](../assets/engram_web_graph.jpg)
 
 ---
 
@@ -192,11 +192,11 @@ style: |
 
 # Technical Architecture
 
-![bg right:65% 95%](/Users/nikola/dev/engramdb/assets/engram_arch_2.svg)
+![bg right:65% 95%](../assets/engram_arch_2.svg)
 
 ---
 
-![bg 75%](/Users/nikola/dev/engramdb/assets/engramdb_arch.svg)
+![bg 75%](../assets/engramdb_arch.svg)
 
 
 ---
@@ -457,7 +457,7 @@ results = db.query()\
 
 **Contact**: info@engramdb.com | www.engramdb.com
 
-![bg right:30% 80%](/Users/nikola/dev/engramdb/assets/logo/dark.png)
+![bg right:30% 80%](../assets/logo/light.png)
 
 ---
 

@@ -1,6 +1,14 @@
 # EngramDB: Engram Database
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://www.python.org/)
+[![Documentation](https://img.shields.io/badge/Docs-mintlify-blue)](https://engramdb.mintlify.app/)
+[![Version](https://img.shields.io/badge/Version-0.1.0-green)](https://github.com/nkkko/engramdb)
+
 EngramDB is a specialized database system designed specifically for agent memory management. It provides efficient storage, retrieval, and querying of agent memories using a unified memory representation model.
+
+📚 **Documentation**: [https://engramdb.mintlify.app/](https://engramdb.mintlify.app/)
 
 ## Core Features
 
@@ -307,7 +315,9 @@ python app_full.py
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+The core EngramDB software is licensed under the MIT License - see the LICENSE file for details.
+
+**Note**: All documentation materials in the `docs/` directory and presentation materials in the `deck/` directory are © Copyright 2025, All Rights Reserved. These materials may not be reproduced or distributed without permission.
 
 ## Roadmap
 
