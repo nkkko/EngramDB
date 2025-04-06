@@ -3,74 +3,120 @@ title: "EngramDB Documentation"
 description: "Documentation for EngramDB, a specialized database for agent memory management"
 ---
 
-# Welcome to EngramDB Documentation
+<div className="max-w-4xl mx-auto px-4 py-8">
+  <h1 className="text-4xl font-bold text-gray-900 mb-6">Welcome to EngramDB Documentation</h1>
 
-EngramDB is a specialized database system designed specifically for agent memory management. It provides efficient storage, retrieval, and querying of agent memories using a unified memory representation model.
+  <p className="text-lg text-gray-700 mb-8">
+    EngramDB is a specialized database system designed specifically for agent memory management. It provides efficient storage, retrieval, and querying of agent memories using a unified memory representation model.
+  </p>
 
-## What is EngramDB?
+  <div className="bg-blue-50 p-6 rounded-lg mb-8">
+    <h2 className="text-2xl font-semibold text-gray-900 mb-4">What is EngramDB?</h2>
+    <p className="text-gray-700">
+      EngramDB is a database system that combines vector, graph, and temporal properties in a single primitive called a MemoryNode. This unified approach allows for rich, multi-dimensional representation of agent memories, enabling complex queries that can leverage semantic similarity, relational connections, and temporal evolution.
+    </p>
+  </div>
 
-EngramDB is a database system that combines vector, graph, and temporal properties in a single primitive called a MemoryNode. This unified approach allows for rich, multi-dimensional representation of agent memories, enabling complex queries that can leverage semantic similarity, relational connections, and temporal evolution.
+  <h2 className="text-2xl font-semibold text-gray-900 mb-4">Core Features</h2>
+  <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <li className="bg-white p-4 rounded-lg shadow-sm">
+      <span className="font-medium">Unified Memory Representation</span>: Combines graph, vector, and temporal properties in a single primitive
+    </li>
+    <li className="bg-white p-4 rounded-lg shadow-sm">
+      <span className="font-medium">Vector Similarity Search</span>: Find memories with similar semantic content
+    </li>
+    <li className="bg-white p-4 rounded-lg shadow-sm">
+      <span className="font-medium">Flexible Storage Options</span>: In-memory database for testing and development, file-based for persistence
+    </li>
+    <li className="bg-white p-4 rounded-lg shadow-sm">
+      <span className="font-medium">Query API</span>: Rich querying with vector similarity, attribute filters, and temporal constraints
+    </li>
+    <li className="bg-white p-4 rounded-lg shadow-sm">
+      <span className="font-medium">Memory Evolution</span>: Track changes to memories over time with temporal layers
+    </li>
+    <li className="bg-white p-4 rounded-lg shadow-sm">
+      <span className="font-medium">Python Bindings</span>: First-class Python API for integration with ML and AI applications
+    </li>
+    <li className="bg-white p-4 rounded-lg shadow-sm">
+      <span className="font-medium">Web Interface</span>: Browser-based UI for visualization and interaction with the database
+    </li>
+  </ul>
 
-## Core Features
+  <h2 className="text-2xl font-semibold text-gray-900 mb-4">Getting Started</h2>
+  <CardGroup cols={2}>
+    <Card
+      title="Installation"
+      icon="rocket"
+      href="/getting-started"
+    >
+      Learn how to install and set up EngramDB
+    </Card>
+    <Card
+      title="Core Concepts"
+      icon="book"
+      href="/core-concepts"
+    >
+      Understand the fundamental building blocks of EngramDB
+    </Card>
+    <Card
+      title="API Reference"
+      icon="code"
+      href="/api-reference/memory-node"
+    >
+      Explore the detailed API documentation
+    </Card>
+    <Card
+      title="Examples"
+      icon="flask"
+      href="/examples/rust-examples"
+    >
+      See EngramDB in action with code examples
+    </Card>
+  </CardGroup>
 
-- **Unified Memory Representation**: Combines graph, vector, and temporal properties in a single primitive
-- **Vector Similarity Search**: Find memories with similar semantic content
-- **Flexible Storage Options**: In-memory database for testing and development, file-based for persistence
-- **Query API**: Rich querying with vector similarity, attribute filters, and temporal constraints
-- **Memory Evolution**: Track changes to memories over time with temporal layers
-- **Python Bindings**: First-class Python API for integration with ML and AI applications
-- **Web Interface**: Browser-based UI for visualization and interaction with the database
+  <div className="mt-8">
+    <h2 className="text-2xl font-semibold text-gray-900 mb-4">Why EngramDB?</h2>
+    <p className="text-gray-700 mb-4">
+      Traditional databases are not optimized for the unique requirements of agent memory systems:
+    </p>
+    <ul className="space-y-2 text-gray-700">
+      <li className="flex items-start">
+        <span className="text-blue-500 mr-2">•</span>
+        <span><span className="font-medium">Vector databases</span> excel at similarity search but lack graph capabilities</span>
+      </li>
+      <li className="flex items-start">
+        <span className="text-blue-500 mr-2">•</span>
+        <span><span className="font-medium">Graph databases</span> handle relationships well but aren't optimized for vector similarity</span>
+      </li>
+      <li className="flex items-start">
+        <span className="text-blue-500 mr-2">•</span>
+        <span><span className="font-medium">Document databases</span> provide flexible schemas but lack specialized memory features</span>
+      </li>
+      <li className="flex items-start">
+        <span className="text-blue-500 mr-2">•</span>
+        <span><span className="font-medium">Time-series databases</span> track changes over time but aren't designed for semantic search</span>
+      </li>
+    </ul>
+  </div>
 
-## Getting Started
+  <div className="mt-8">
+    <h2 className="text-2xl font-semibold text-gray-900 mb-4">Advanced Topics</h2>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <a href="/advanced-topics/temporal-layers" className="block p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+        <span className="font-medium">Temporal Layers</span>: Learn how to track memory evolution over time
+      </a>
+      <a href="/advanced-topics/connections" className="block p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+        <span className="font-medium">Connections</span>: Create and manage relationships between memories
+      </a>
+      <a href="/advanced-topics/storage-engines" className="block p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+        <span className="font-medium">Storage Engines</span>: Understand the different storage backends
+      </a>
+    </div>
+  </div>
 
-<CardGroup cols={2}>
-  <Card
-    title="Installation"
-    icon="rocket"
-    href="/getting-started"
-  >
-    Learn how to install and set up EngramDB
-  </Card>
-  <Card
-    title="Core Concepts"
-    icon="book"
-    href="/core-concepts"
-  >
-    Understand the fundamental building blocks of EngramDB
-  </Card>
-  <Card
-    title="API Reference"
-    icon="code"
-    href="/api-reference/memory-node"
-  >
-    Explore the detailed API documentation
-  </Card>
-  <Card
-    title="Examples"
-    icon="flask"
-    href="/examples/rust-examples"
-  >
-    See EngramDB in action with code examples
-  </Card>
-</CardGroup>
-
-## Why EngramDB?
-
-Traditional databases are not optimized for the unique requirements of agent memory systems:
-
-- **Vector databases** excel at similarity search but lack graph capabilities
-- **Graph databases** handle relationships well but aren't optimized for vector similarity
-- **Document databases** provide flexible schemas but lack specialized memory features
-- **Time-series databases** track changes over time but aren't designed for semantic search
-
-EngramDB combines the strengths of these different database types into a unified system specifically designed for agent memory management.
-
-## Advanced Topics
-
-- [Temporal Layers](/advanced-topics/temporal-layers): Learn how to track memory evolution over time
-- [Connections](/advanced-topics/connections): Create and manage relationships between memories
-- [Storage Engines](/advanced-topics/storage-engines): Understand the different storage backends
-
-## Contributing
-
-We welcome contributions to EngramDB! Check out our [contributing guide](/contributing) to get started.
+  <div className="mt-8 text-center">
+    <p className="text-gray-700">
+      We welcome contributions to EngramDB! Check out our <a href="/contributing" className="text-blue-600 hover:text-blue-800">contributing guide</a> to get started.
+    </p>
+  </div>
+</div>

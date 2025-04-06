@@ -1,5 +1,5 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
+  "$schema": "https://mintlify.com/schema.json",
   "name": "EngramDB",
   "description": "A specialized database system for agent memory management",
   "logo": {
@@ -13,51 +13,46 @@
     "dark": "#3730A3"
   },
   "theme": "mint",
-  "navbar": {
-    "links": [
-      {
-        "label": "GitHub",
-        "href": "https://github.com/nkkko/engramdb"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Get Started",
-      "href": "https://github.com/nkkko/engramdb"
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/nkkko/engramdb"
     }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/getting-started"
   },
   "navigation": {
     "anchors": [
       {
-        "anchor": "API Reference",
-        "icon": "code",
-        "href": "/api-reference/memory-node"
+        "anchor": "Documentation",
+        "icon": "book",
+        "href": "getting-started"
       },
       {
-        "anchor": "Examples",
-        "icon": "book-open",
-        "href": "/examples/rust-examples"
+        "anchor": "API Reference",
+        "icon": "code",
+        "href": "api-reference/memory-node"
       },
       {
         "anchor": "Advanced Topics",
         "icon": "lightbulb",
-        "href": "/advanced-topics/temporal-layers"
+        "href": "advanced-topics/temporal-layers"
       }
     ],
     "groups": [
       {
+        "group": "Getting Started",
         "pages": [
-          "index"
-        ]
-      },
-      {
-        "pages": [
+          "index",
           "introduction",
           "getting-started",
           "core-concepts"
         ]
       },
       {
+        "group": "API Reference",
         "pages": [
           "api-reference/memory-node",
           "api-reference/database",
@@ -66,12 +61,14 @@
         ]
       },
       {
+        "group": "Examples",
         "pages": [
           "examples/rust-examples",
           "examples/python-examples"
         ]
       },
       {
+        "group": "Advanced Topics",
         "pages": [
           "advanced-topics/temporal-layers",
           "advanced-topics/connections",
@@ -79,15 +76,14 @@
         ]
       },
       {
+        "group": "Contributing",
         "pages": [
           "contributing"
         ]
       }
     ]
   },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/nkkko/engramdb"
-    }
+  "footerSocials": {
+    "github": "https://github.com/nkkko/engramdb"
   }
 }
