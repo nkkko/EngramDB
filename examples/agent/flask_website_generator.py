@@ -25,16 +25,49 @@ import tempfile
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any, Union
+from pathlib import Path
 
 import numpy as np
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext, ModelRetry
 import engramdb_py as engramdb
 
+# Load environment variables from .env file if it exists
+env_path = Path('.env')
+if env_path.exists():
+    print(f"Loading configuration from {env_path}")
+    with open(env_path) as f:
+        for line in f:
+            # Skip comments and empty lines
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+
+            # Parse key=value pairs
+            if '=' in line:
+                key, value = line.split('=', 1)
+                # Remove quotes if present
+                value = value.strip('"\'')
+                if value and key not in os.environ:
+                    os.environ[key] = value
+                    print(f"  Set {key}")
+
 # Configuration
-ENGRAMDB_PATH = "agent_memory.engramdb"
-WEBSITE_OUTPUT_PATH = os.path.join(tempfile.gettempdir(), "generated_flask_website")
-DEFAULT_MODEL = os.environ.get("PYDANTIC_AI_MODEL", "openai:gpt-4o")
+ENGRAMDB_PATH = os.environ.get("ENGRAMDB_PATH", "agent_memory.engramdb")
+WEBSITE_OUTPUT_PATH = os.environ.get("WEBSITE_OUTPUT_PATH", os.path.join(tempfile.gettempdir(), "generated_flask_website"))
+# Try different models in order of availability, use environment variable if set
+DEFAULT_MODEL = os.environ.get("PYDANTIC_AI_MODEL")
+
+# If not explicitly set, try to pick a suitable default based on available keys
+if not DEFAULT_MODEL:
+    if "OPENAI_API_KEY" in os.environ:
+        DEFAULT_MODEL = "openai:gpt-3.5-turbo"  # Less expensive model for testing
+    elif "ANTHROPIC_API_KEY" in os.environ:
+        DEFAULT_MODEL = "anthropic:claude-3-5-haiku-latest"  # More widely available model
+    elif "GROQ_API_KEY" in os.environ:
+        DEFAULT_MODEL = "groq:llama-3.1-8b-instant"
+    else:
+        DEFAULT_MODEL = "openai:gpt-3.5-turbo"  # Default if no explicit choice
 
 
 class WebsiteComponent(BaseModel):
@@ -90,6 +123,8 @@ class AgentContext:
         return np.random.random(10).astype(np.float32).tolist()
 
 
+# No need to adjust model name since we're using the latest naming conventions
+
 # Create the agent with EngramDB dependency injection
 website_generator = Agent(
     DEFAULT_MODEL,
@@ -104,6 +139,12 @@ website_generator = Agent(
 
     You have access to a database of past interactions, which you should use to maintain context.
     When generating code, make sure it's compatible with any previously generated components.
+    
+    IMPORTANT: You MUST respond with a valid JSON object that matches the AgentResponse type with these fields:
+    - message: string (your response to the user)
+    - generated_components: array of WebsiteComponent objects (if any)
+    - should_save_files: boolean
+    - next_steps: array of strings
 
     Each component you generate should be standalone and complete, not just snippets.
 
@@ -250,10 +291,17 @@ async def store_component(
     )
     ctx.deps.components[name] = component
 
-    # Connect to relevant requirements
-    for req in ctx.deps.user_requirements:
-        req_id = uuid.UUID(req["id"])
-        ctx.deps.db.connect(req_id, component_id, "fulfilled_by", 0.8)
+    # Connect to relevant requirements - with proper error handling
+    try:
+        for req in ctx.deps.user_requirements:
+            try:
+                req_id = uuid.UUID(req["id"])
+                # Convert IDs to strings if needed - some versions of EngramDB may require string IDs
+                ctx.deps.db.connect(str(req_id), str(component_id), "fulfilled_by", 0.8)
+            except Exception as e:
+                print(f"Warning: Could not connect requirement to component: {e}")
+    except Exception as e:
+        print(f"Warning: Error connecting requirements: {e}")
 
     return f"Component '{name}' stored with ID: {component_id}"
 
@@ -418,116 +466,329 @@ async def ensure_correct_component_format(
     return True
 
 
+def parse_anthropic_response(result) -> AgentResponse:
+    """Helper function to parse Anthropic model responses that might not be properly structured.
+    This helps handle cases where the model returns a boolean or other unexpected type."""
+    
+    if isinstance(result.data, bool) or result.data is None:
+        print(f"Attempting to reconstruct response from the raw completion")
+        # Try to extract structured data from the raw completion text
+        try:
+            # Get the raw completion text
+            raw_text = result.completion if hasattr(result, 'completion') else ""
+            
+            # Look for JSON in the response
+            import json
+            import re
+            
+            # Try to find JSON pattern in the text
+            json_match = re.search(r'```json\n(.*?)\n```', raw_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                parsed_data = json.loads(json_str)
+                return AgentResponse(**parsed_data)
+            
+            # If no JSON block found, try to parse the entire text if it looks like JSON
+            if raw_text.strip().startswith('{') and raw_text.strip().endswith('}'):
+                try:
+                    parsed_data = json.loads(raw_text)
+                    return AgentResponse(**parsed_data)
+                except:
+                    pass
+            
+            # Extract a message at minimum
+            message = raw_text
+            if len(message) > 500:  # Truncate if very long
+                message = message[:500] + "..."
+                
+            return AgentResponse(
+                message=message,
+                generated_components=[],
+                next_steps=["Please provide more details about your website requirements"],
+                should_save_files=False
+            )
+        except Exception as e:
+            print(f"Error parsing raw completion: {e}")
+            # Return a default response
+            return AgentResponse(
+                message="I'm having trouble understanding. Could you provide more details about the website you'd like to build?",
+                generated_components=[],
+                next_steps=["Describe the purpose of your website", "Specify any specific features you need"],
+                should_save_files=False
+            )
+    else:
+        # Return the correctly structured response
+        return result.data
+
+
 async def process_user_message(user_message: str, context: AgentContext = None) -> Dict[str, Any]:
     """Process a user message through the agent"""
 
     # Create a new database if we don't have one yet
     if context is None:
-        # Create a file-based database
-        db = engramdb.Database.file_based(ENGRAMDB_PATH)
-
-        context = AgentContext(db=db)
-
-    # Store the user message in EngramDB
-    vector = context.text_to_vector(user_message)
-    node = engramdb.MemoryNode(vector)
-    node.set_attribute("memory_type", "chat_message")
-    node.set_attribute("role", "user")
-    node.set_attribute("content", user_message)
-    node.set_attribute("timestamp", datetime.now().isoformat())
-    node.set_attribute("chat_id", str(context.current_chat_id))
-    context.db.save(node)
-
-    # Run the agent with the user message
-    result = await website_generator.run(user_message, deps=context)
-
-    # Store the agent's response in EngramDB
-    vector = context.text_to_vector(result.data.message)
-    node = engramdb.MemoryNode(vector)
-    node.set_attribute("memory_type", "chat_message")
-    node.set_attribute("role", "assistant")
-    node.set_attribute("content", result.data.message)
-    node.set_attribute("timestamp", datetime.now().isoformat())
-    node.set_attribute("chat_id", str(context.current_chat_id))
-    context.db.save(node)
-
-    # If requested, save files
-    if result.data.should_save_files:
-        # Save files using the direct approach rather than through the RunContext
         try:
-            # Create output directory if it doesn't exist
-            os.makedirs(WEBSITE_OUTPUT_PATH, exist_ok=True)
+            # Create a file-based database
+            db = engramdb.Database.file_based(ENGRAMDB_PATH)
+            context = AgentContext(db=db)
+        except Exception as e:
+            print(f"Error creating database: {e}")
+            # Create a fallback in-memory database
+            db = engramdb.Database.in_memory()
+            context = AgentContext(db=db)
 
-            # Create typical Flask directory structure
-            os.makedirs(os.path.join(WEBSITE_OUTPUT_PATH, "static"), exist_ok=True)
-            os.makedirs(os.path.join(WEBSITE_OUTPUT_PATH, "templates"), exist_ok=True)
+    try:
+        # Store the user message in EngramDB - with error handling
+        try:
+            vector = context.text_to_vector(user_message)
+            node = engramdb.MemoryNode(vector)
+            node.set_attribute("memory_type", "chat_message")
+            node.set_attribute("role", "user")
+            node.set_attribute("content", user_message)
+            node.set_attribute("timestamp", datetime.now().isoformat())
+            node.set_attribute("chat_id", str(context.current_chat_id))
+            context.db.save(node)
+        except Exception as e:
+            print(f"Warning: Could not store user message: {e}")
 
-            # Fetch all component memories
-            memory_ids = context.db.list_all()
-            component_nodes = []
+        # Run the agent with the user message - with better error handling for model issues
+        try:
+            # Print which model we're using
+            print(f"Using model: {DEFAULT_MODEL}")
 
-            for memory_id in memory_ids:
-                node = context.db.load(memory_id)
-                if node.get_attribute("memory_type") == "component":
-                    component_nodes.append(node)
+            # Import the needed modules for custom initialization
+            from pydantic_ai.providers.openai import OpenAIProvider
+            from pydantic_ai.models.openai import OpenAIModel
+            
+            # Check if we're using OpenAI and have a project key
+            custom_model = None
+            if "openai:" in DEFAULT_MODEL and "OPENAI_API_KEY" in os.environ:
+                api_key = os.environ["OPENAI_API_KEY"]
+                if api_key.startswith("sk-proj-"):
+                    print("Using a custom provider for project API key")
+                    model_name = DEFAULT_MODEL.split(":", 1)[1]
+                    # Create a custom provider that can handle project keys
+                    provider = OpenAIProvider(api_key=api_key)
+                    custom_model = OpenAIModel(model_name, provider=provider)
+            
+            # Use either the custom model or the default configuration
+            if custom_model:
+                result = await website_generator.run(user_message, model=custom_model, deps=context)
+            else:
+                result = await website_generator.run(user_message, deps=context)
+            
+            # Debug the result structure
+            print(f"DEBUG: Result type: {type(result)}")
+            print(f"DEBUG: Result.data type: {type(result.data)}")
+            
+            # Try to parse the response if it's not properly structured
+            if "anthropic:" in DEFAULT_MODEL and (isinstance(result.data, bool) or not hasattr(result.data, 'message')):
+                print("Attempting to fix Anthropic response format...")
+                result.data = parse_anthropic_response(result)
+                print(f"After fix - Result.data type: {type(result.data)}")
+        except Exception as e:
+            print(f"Error with model {DEFAULT_MODEL}: {e}")
+            
+            # Try a fallback to Anthropic with a different model name
+            if "anthropic:" in DEFAULT_MODEL and "ANTHROPIC_API_KEY" in os.environ:
+                try:
+                    print("Trying fallback to Anthropic Claude 3 Haiku (latest)...")
+                    # Temporarily modify the agent's model
+                    orig_model = website_generator.model
+                    from pydantic_ai.models.anthropic import AnthropicModel
+                    from pydantic_ai.providers.anthropic import AnthropicProvider
+                    
+                    # Use the latest model
+                    api_key = os.environ["ANTHROPIC_API_KEY"]
+                    provider = AnthropicProvider(api_key=api_key)
+                    fallback_model = AnthropicModel("claude-3-5-haiku-latest", provider=provider)
+                    website_generator.model = fallback_model
 
-            # Track files we create
-            created_files = []
+                    # Try again with Anthropic but with correct model name
+                    result = await website_generator.run(user_message, model=fallback_model, deps=context)
 
-            # Process each component and create the appropriate file
-            for node in component_nodes:
-                component_name = node.get_attribute("name")
-                component_type = node.get_attribute("type")
-                code = node.get_attribute("code")
-                description = node.get_attribute("description")
+                    # Debug the result structure
+                    print(f"DEBUG: Result type with fallback: {type(result)}")
+                    print(f"DEBUG: Result.data type with fallback: {type(result.data)}")
+                    
+                    # Try to parse the response with our helper function
+                    if isinstance(result.data, bool) or not hasattr(result.data, 'message'):
+                        print("Attempting to fix fallback Anthropic response format...")
+                        result.data = parse_anthropic_response(result)
+                        print(f"After fallback fix - Result.data type: {type(result.data)}")
 
-                # Determine the filename and path
-                if component_type == "route" or component_type == "main":
-                    filename = "app.py" if component_name == "main" else f"{component_name}.py"
-                    filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
-                elif component_type == "template":
-                    filename = f"{component_name}.html"
-                    filepath = os.path.join(WEBSITE_OUTPUT_PATH, "templates", filename)
-                elif component_type == "static":
-                    filename = f"{component_name}.css" if "css" in component_name else f"{component_name}.js"
-                    filepath = os.path.join(WEBSITE_OUTPUT_PATH, "static", filename)
-                elif component_type == "model":
-                    filename = "models.py" if component_name == "models" else f"{component_name}_model.py"
-                    filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
-                elif component_type == "form":
-                    filename = "forms.py" if component_name == "forms" else f"{component_name}_form.py"
-                    filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
-                else:
-                    filename = f"{component_name}.py"
-                    filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
+                    # Restore the original model
+                    website_generator.model = orig_model
+                except Exception as fallback_error:
+                    print(f"Fallback also failed: {fallback_error}")
+                    # Raise a more helpful error
+                    raise Exception(f"Failed with main model ({DEFAULT_MODEL}) and fallback. Please check your API keys and connectivity.") from e
+            else:
+                # Re-raise the original error
+                raise
 
-                # Write the file
-                with open(filepath, 'w') as f:
-                    f.write(code)
+        # Check if result is properly formatted
+        if isinstance(result.data, bool) or not hasattr(result.data, 'message'):
+            print(f"Warning: Agent result has unexpected type: {type(result.data)}. Using default message.")
+            print(f"Raw result: {result.data}")
+            response_message = "I'm having trouble understanding. Could you please provide more details about the website you'd like to build?"
+            generated_components = []
+            next_steps = ["Describe the purpose of your website", "Specify any specific features you need"]
+            should_save_files = False
+        else:
+            # Use the structured response
+            response_message = result.data.message
+            generated_components = result.data.generated_components if hasattr(result.data, 'generated_components') else []
+            next_steps = result.data.next_steps if hasattr(result.data, 'next_steps') else []
+            should_save_files = result.data.should_save_files if hasattr(result.data, 'should_save_files') else False
 
-                created_files.append(filepath)
+        # Store the agent's response in EngramDB
+        vector = context.text_to_vector(response_message)
+        node = engramdb.MemoryNode(vector)
+        node.set_attribute("memory_type", "chat_message")
+        node.set_attribute("role", "assistant")
+        node.set_attribute("content", response_message)
+        node.set_attribute("timestamp", datetime.now().isoformat())
+        node.set_attribute("chat_id", str(context.current_chat_id))
+        context.db.save(node)
 
-            # Create a basic requirements.txt with Flask dependencies
-            requirements_content = """flask>=2.0.0
+        # If requested, save files
+        if should_save_files:
+            # Save files using the direct approach rather than through the RunContext
+            try:
+                # Create output directory if it doesn't exist
+                os.makedirs(WEBSITE_OUTPUT_PATH, exist_ok=True)
+
+                # Create typical Flask directory structure
+                os.makedirs(os.path.join(WEBSITE_OUTPUT_PATH, "static"), exist_ok=True)
+                os.makedirs(os.path.join(WEBSITE_OUTPUT_PATH, "templates"), exist_ok=True)
+
+                # Fetch all component memories
+                memory_ids = context.db.list_all()
+                component_nodes = []
+
+                for memory_id in memory_ids:
+                    node = context.db.load(memory_id)
+                    if node.get_attribute("memory_type") == "component":
+                        component_nodes.append(node)
+
+                # Track files we create
+                created_files = []
+
+                # Process each component and create the appropriate file
+                for node in component_nodes:
+                    component_name = node.get_attribute("name")
+                    component_type = node.get_attribute("type")
+                    code = node.get_attribute("code")
+                    description = node.get_attribute("description")
+
+                    # Determine the filename and path
+                    if component_type == "route" or component_type == "main":
+                        filename = "app.py" if component_name == "main" else f"{component_name}.py"
+                        filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
+                    elif component_type == "template":
+                        filename = f"{component_name}.html"
+                        filepath = os.path.join(WEBSITE_OUTPUT_PATH, "templates", filename)
+                    elif component_type == "static":
+                        filename = f"{component_name}.css" if "css" in component_name else f"{component_name}.js"
+                        filepath = os.path.join(WEBSITE_OUTPUT_PATH, "static", filename)
+                    elif component_type == "model":
+                        filename = "models.py" if component_name == "models" else f"{component_name}_model.py"
+                        filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
+                    elif component_type == "form":
+                        filename = "forms.py" if component_name == "forms" else f"{component_name}_form.py"
+                        filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
+                    else:
+                        filename = f"{component_name}.py"
+                        filepath = os.path.join(WEBSITE_OUTPUT_PATH, filename)
+
+                    # Write the file
+                    with open(filepath, 'w') as f:
+                        f.write(code)
+
+                    created_files.append(filepath)
+
+                # Create a basic requirements.txt with Flask dependencies
+                requirements_content = """flask>=2.0.0
 flask-wtf>=1.0.0
 flask-sqlalchemy>=3.0.0
 """
-            with open(os.path.join(WEBSITE_OUTPUT_PATH, "requirements.txt"), 'w') as f:
-                f.write(requirements_content)
+                with open(os.path.join(WEBSITE_OUTPUT_PATH, "requirements.txt"), 'w') as f:
+                    f.write(requirements_content)
 
-            created_files.append(os.path.join(WEBSITE_OUTPUT_PATH, "requirements.txt"))
+                created_files.append(os.path.join(WEBSITE_OUTPUT_PATH, "requirements.txt"))
 
-            print(f"Created {len(created_files)} files in {WEBSITE_OUTPUT_PATH}")
-        except Exception as e:
-            print(f"Error saving files: {e}")
+                print(f"Created {len(created_files)} files in {WEBSITE_OUTPUT_PATH}")
+            except Exception as e:
+                print(f"Error saving files: {e}")
 
-    # Return the agent's response
-    return {
-        "message": result.data.message,
-        "generated_components": [comp.dict() for comp in result.data.generated_components],
-        "next_steps": result.data.next_steps,
-        "should_save_files": result.data.should_save_files
-    }
+        # Return the agent's response
+        return {
+            "message": response_message,
+            "generated_components": [comp.dict() if hasattr(comp, 'dict') else comp for comp in generated_components],
+            "next_steps": next_steps,
+            "should_save_files": should_save_files
+        }
+    except Exception as e:
+        print(f"Error processing message: {e}")
+        # Return a fallback response
+        return {
+            "message": "I encountered an error while processing your request. Please try again.",
+            "generated_components": [],
+            "next_steps": ["Describe your website requirements again"],
+            "should_save_files": False
+        }
+
+
+def verify_model_access():
+    """Verify that we can access the specified model"""
+    try:
+        if "openai:gpt" in DEFAULT_MODEL:
+            if "OPENAI_API_KEY" not in os.environ:
+                print("⚠️  Warning: Using OpenAI model but OPENAI_API_KEY environment variable is not set")
+                return False
+            else:
+                # Basic format check for OpenAI keys
+                key = os.environ["OPENAI_API_KEY"]
+                # OpenAI now uses project-specific keys that start with sk-proj-
+                if not (key.startswith("sk-") or key.startswith("sk-proj-")):
+                    print("⚠️  Warning: Your OpenAI API key doesn't follow the expected format")
+                    print("   Valid formats: sk-... (older) or sk-proj-... (newer project keys)")
+                # Don't print the actual key for security reasons
+                print(f"   API Key: {key[:5]}...{key[-4:]} (length: {len(key)})")
+                
+        elif "anthropic:claude" in DEFAULT_MODEL:
+            if "ANTHROPIC_API_KEY" not in os.environ:
+                print("⚠️  Warning: Using Anthropic model but ANTHROPIC_API_KEY environment variable is not set")
+                return False
+            else:
+                # Check Anthropic key format
+                key = os.environ["ANTHROPIC_API_KEY"]
+                if not key.startswith("sk-ant-"):
+                    print("⚠️  Warning: Your Anthropic API key doesn't follow the expected format (should start with sk-ant-)")
+                print(f"   API Key: {key[:7]}...{key[-4:]} (length: {len(key)})")
+                
+        elif "groq:" in DEFAULT_MODEL:
+            if "GROQ_API_KEY" not in os.environ:
+                print("⚠️  Warning: Using Groq model but GROQ_API_KEY environment variable is not set")
+                return False
+            else:
+                key = os.environ["GROQ_API_KEY"]
+                print(f"   API Key: {key[:5]}...{key[-4:]} (length: {len(key)})")
+                
+        print(f"✅ Model configuration: {DEFAULT_MODEL}")
+        
+        # Add explicit instructions for fixing API key issues
+        print("\nTo fix API key issues:")
+        print("1. Make sure your API key is correct and active")
+        print("2. Set it correctly in your .env file or environment variables")
+        print("3. For OpenAI: https://platform.openai.com/account/api-keys")
+        print("4. For Anthropic: https://console.anthropic.com/settings/keys")
+        print("5. For Groq: https://console.groq.com/keys\n")
+        
+        return True
+    except Exception as e:
+        print(f"⚠️  Warning: Could not verify model access: {e}")
+        return False
 
 
 def interactive_cli_chat():
@@ -536,6 +797,9 @@ def interactive_cli_chat():
     print("This agent helps you build Flask websites step by step while maintaining")
     print("context using EngramDB for memory and PydanticAI for structured reasoning.\n")
     print("Type 'exit' to quit, 'save' to save all files to disk.\n")
+
+    # Verify model access
+    verify_model_access()
 
     # Initialize database
     if os.path.exists(ENGRAMDB_PATH):

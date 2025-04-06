@@ -43,7 +43,7 @@ style: |
 # **EngramDB**
 ## A purpose-built graph vector database for AI agent memory
 
-![bg right:40% 90%](/Users/nikola/dev/engramdb/assets/logo/light.svg)
+![bg right:40% 90%](/Users/nikola/dev/engramdb/assets/logo/light.png)
 
 ---
 
@@ -457,7 +457,7 @@ results = db.query()\
 
 **Contact**: info@engramdb.com | www.engramdb.com
 
-![bg right:30% 80%](/Users/nikola/dev/engramdb/assets/logo/dark.svg)
+![bg right:30% 80%](/Users/nikola/dev/engramdb/assets/logo/dark.png)
 
 ---
 

@@ -87,8 +87,8 @@ memory2_id = db.save(memory2)
 
 # Create a connection
 db.connect(
-    memory1_id, 
-    memory2_id, 
+    memory1_id,
+    memory2_id,
     relationship_type=engramdb.RelationshipType.ASSOCIATION,
     strength=0.8
 )
@@ -129,7 +129,7 @@ db.connect(
 To build the package from source:
 
 ```bash
-git clone https://github.com/yourusername/engramdb.git
+git clone https://github.com/nkkko/engramdb.git
 cd engramdb/python
 pip install maturin
 maturin develop

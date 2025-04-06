@@ -22,14 +22,36 @@ This directory contains examples demonstrating how to use EngramDB with Pydantic
 4. Dynamic system prompts retrieve context from EngramDB to maintain coherence across interactions
 5. Built-in validation ensures the agent generates complete, valid code components
 
-### Running the Example
+### Development Setup
 
-1. Install the required dependencies:
+1. Create a virtual environment:
    ```bash
-   pip install pydantic-ai engramdb flask
+   python -m venv env
+   source env/bin/activate  # On Windows: env\Scripts\activate
    ```
 
-2. Run the example:
+2. Install EngramDB from the local repository and other dependencies:
+   ```bash
+   # From the examples/agent directory:
+   pip install -e ../../python/  # Install EngramDB from local repo
+   pip install pydantic-ai flask
+   ```
+
+3. Configure API Keys and Settings:
+   Copy the example environment file and add your API keys:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your preferred text editor to add API keys
+   ```
+   
+   The `.env` file allows you to configure:
+   - The LLM model to use (OpenAI, Anthropic, or Groq)
+   - Your API keys for the chosen provider
+   - Storage locations for the EngramDB database and generated website files
+
+### Running the Example
+
+1. Run the example:
    ```bash
    python flask_website_generator.py
    ```
@@ -72,3 +94,20 @@ This example demonstrates EngramDB's value for LLM agent implementations by prov
 5. **Simple API**: Clean, idiomatic Python interface for storing and retrieving memories
 
 This approach helps solve common challenges in LLM applications like context limitations, maintaining coherence across interactions, and retrieving relevant information from past conversations.
+
+## Troubleshooting
+
+### Missing Dependencies
+- **Error**: `ModuleNotFoundError: No module named 'engramdb_py'`  
+  **Solution**: Install EngramDB from the local repository as shown in the Development Setup.
+
+- **Error**: `ModuleNotFoundError: No module named 'pydantic_ai'`  
+  **Solution**: Make sure you've installed the pydantic-ai package with `pip install pydantic-ai`.
+
+### API Key Issues
+- **Error**: "API key not found" or "Authentication error"  
+  **Solution**: Ensure you've added your API key to the `.env` file and it's correct.
+
+### Memory Database
+- If you want to start with a fresh memory database, delete the `agent_memory.engramdb` file.
+- To backup generated websites, copy the output directory specified in your `.env` file.

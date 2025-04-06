@@ -29,8 +29,8 @@ dependencies = [
 version = "0.1.0"
 
 [project.urls]
-Repository = "https://github.com/yourusername/engramdb"
-Documentation = "https://github.com/yourusername/engramdb/python/README.md"
+Repository = "https://github.com/nkkko/engramdb"
+Documentation = "https://github.com/nkkko/engramdb/python/README.md"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]

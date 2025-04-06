@@ -30,7 +30,7 @@ EngramDB is a specialized database system designed specifically for agent memory
 Clone the repository and build the project:
 
 ```bash
-git clone https://github.com/yourusername/engramdb.git
+git clone https://github.com/nkkko/engramdb.git
 cd engramdb
 cargo build
 ```

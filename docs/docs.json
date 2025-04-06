@@ -3,8 +3,8 @@
   "name": "EngramDB",
   "description": "A specialized database system for agent memory management",
   "logo": {
-    "light": "assets/logo/light.png",
-    "dark": "assets/logo/dark.png"
+    "light": "logo/light.png",
+    "dark": "logo/dark.png"
   },
   "favicon": "/favicon.svg",
   "colors": {

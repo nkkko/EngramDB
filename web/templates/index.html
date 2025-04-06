@@ -8,7 +8,7 @@
 <div class="row mb-4">
     <div class="col-md-7">
         <p class="lead">
-            A specialized database for agent memory management. Explore how an AI coding agent uses memory to fix bugs in a structured workflow.
+            A specialized database for agent memory management. Explore how an AI assistant maintains memory about a user to provide personalized support.
         </p>
     </div>
     <div class="col-md-5 text-end">
@@ -18,9 +18,12 @@
             </a>
             <form method="POST" action="{{ url_for('load_example_dataset') }}" class="d-inline ms-2">
                 <button type="submit" class="btn btn-success">
-                    <i class="bi bi-database-fill"></i> Load AI Coding Agent Dataset
+                    <i class="bi bi-database-fill"></i> Load AI Assistant Memory Dataset
                 </button>
             </form>
+            <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="bi bi-upload"></i> Import Database
+            </button>
         </div>
     </div>
 </div>
@@ -28,9 +31,14 @@
 {% if memories %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4>{{ memories|length }} Memories</h4>
-        <button type="button" class="btn btn-danger" onclick="confirmDeleteAll()">
-            <i class="bi bi-trash"></i> Delete All Memories
-        </button>
+        <div class="btn-group">
+            <a href="{{ url_for('export_database') }}" class="btn btn-secondary me-2">
+                <i class="bi bi-download"></i> Export Database
+            </a>
+            <button type="button" class="btn btn-danger" onclick="confirmDeleteAll()">
+                <i class="bi bi-trash"></i> Delete All Memories
+            </button>
+        </div>
     </div>
     
     <div class="row row-cols-1 row-cols-md-3 g-4">
@@ -66,15 +74,21 @@
 {% else %}
     <div class="alert alert-info">
         <h4 class="alert-heading">No memories found</h4>
-        <p>Your database is empty. Create your first memory or load an example dataset to get started.</p>
+        <p>Your database is empty. Create your first memory, load an example dataset, or import an existing database to get started.</p>
         <hr>
         <div class="btn-group">
             <a href="{{ url_for('create_memory') }}" class="btn btn-primary">Create First Memory</a>
             <form method="POST" action="{{ url_for('load_example_dataset') }}" class="d-inline">
                 <button type="submit" class="btn btn-success ms-2">
-                    <i class="bi bi-database-fill"></i> Load AI Coding Agent Dataset
+                    <i class="bi bi-database-fill"></i> Load AI Assistant Memory Dataset
                 </button>
             </form>
+            <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="bi bi-upload"></i> Import Database
+            </button>
+            <a href="{{ url_for('export_database') }}" class="btn btn-secondary ms-2">
+                <i class="bi bi-download"></i> Get Sample Database
+            </a>
         </div>
     </div>
 {% endif %}
@@ -121,6 +135,51 @@
                 <form method="POST" action="{{ url_for('delete_all_memories') }}">
                     <button type="submit" class="btn btn-danger">Delete All</button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Database Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import EngramDB Database</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('import_database') }}" enctype="multipart/form-data" id="importForm">
+                    <div class="mb-3">
+                        <label for="databaseFile" class="form-label">Select a .engramdb file to import</label>
+                        <input type="file" class="form-control" id="databaseFile" name="database_file" accept=".engramdb" required>
+                        <div class="form-text">
+                            This will replace your current database. Make sure to export your current data first if needed.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h5><i class="bi bi-info-circle"></i> About EngramDB Database Files</h5>
+                        <p>
+                            EngramDB database files (.engramdb) contain all memories and connections in a portable format.
+                            You can import databases created on other machines or download sample databases.
+                        </p>
+                        <p>
+                            Don't have a database file? <a href="{{ url_for('export_database') }}" class="alert-link">Download a sample database</a>.
+                        </p>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="confirmImport" required>
+                        <label class="form-check-label" for="confirmImport">
+                            I understand this will replace my current database
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="importForm" class="btn btn-primary">Import Database</button>
             </div>
         </div>
     </div>

@@ -13,7 +13,7 @@ except ImportError:
         def array(self, list_data):
             return list_data
     np = NumpyMock()
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from werkzeug.exceptions import NotFound
 import uuid
 import logging
@@ -765,6 +765,100 @@ def remove_connection(source_id, target_id):
     
     return redirect(url_for('view_connections', memory_id=source_id))
 
+@app.route('/export_database')
+def export_database():
+    """
+    Export the current database as a downloadable .engramdb file.
+    
+    This allows users to backup their database or transfer it to another EngramDB instance.
+    """
+    global db
+    try:
+        # Create a temporary directory
+        import tempfile
+        import os
+        import shutil
+        
+        # Check if we can determine the actual database file
+        db_file_path = None
+        try:
+            # For single file storage, there should be a file called database.engramdb
+            potential_path = os.path.join(DB_PATH, "database.engramdb")
+            if os.path.isfile(potential_path):
+                db_file_path = potential_path
+                logger.info(f"Found single file database at {db_file_path}")
+            else:
+                # Look for any .engramdb files in the DB_PATH
+                for filename in os.listdir(DB_PATH):
+                    if filename.endswith('.engramdb'):
+                        db_file_path = os.path.join(DB_PATH, filename)
+                        logger.info(f"Found database file: {db_file_path}")
+                        break
+        except Exception as e:
+            logger.warning(f"Could not locate database file: {e}")
+        
+        if not db_file_path:
+            # Generate a sample database file if no database file was found
+            temp_dir = tempfile.mkdtemp()
+            try:
+                # Create a temporary Database instance
+                temp_db_path = os.path.join(temp_dir, "temp_export.engramdb")
+                
+                # Run the sample dataset creator to generate a database file
+                import engramdb_py
+                try:
+                    # First try to use the single_file constructor if available
+                    temp_db = engramdb_py.Database.single_file(temp_db_path)
+                except AttributeError:
+                    # Fall back to another constructor if available
+                    try:
+                        from engramdb import StorageType
+                        config = engramdb_py.DatabaseConfig(
+                            storage_type=StorageType.SingleFile,
+                            storage_path=temp_db_path,
+                            cache_size=100
+                        )
+                        temp_db = engramdb_py.Database.new(config)
+                    except (AttributeError, ImportError):
+                        # Last resort - try using in-memory with temporary file
+                        logger.warning("Could not create single file database for export, using in-memory")
+                        temp_db = engramdb_py.Database.in_memory()
+                    
+                engramdb_py.load_minimal_dataset(temp_db)
+                
+                # Return the file for download
+                return send_file(
+                    temp_db_path,
+                    as_attachment=True,
+                    download_name="engramdb_sample.engramdb",
+                    mimetype="application/octet-stream"
+                )
+            except Exception as e:
+                logger.error(f"Error generating sample database: {e}", exc_info=True)
+                flash(f"Error exporting database: {e}", "error")
+                return redirect(url_for('index'))
+            finally:
+                try:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                except:
+                    pass
+        else:
+            # Return the actual database file for download
+            filename = os.path.basename(db_file_path)
+            download_name = f"engramdb_export_{int(time.time())}.engramdb"
+            
+            return send_file(
+                db_file_path,
+                as_attachment=True,
+                download_name=download_name,
+                mimetype="application/octet-stream"
+            )
+    
+    except Exception as e:
+        logger.error(f"Error during database export: {e}", exc_info=True)
+        flash(f"Error exporting database: {e}", "error")
+        return redirect(url_for('index'))
+
 @app.route('/memory/graph')
 def memory_graph():
     """View the entire memory graph."""
@@ -1064,6 +1158,151 @@ def load_example_dataset():
         logger.error(f"Error loading example dataset: {e}", exc_info=True)
         flash(f"Error loading example dataset: {e}", "error")
         
+    return redirect(url_for('index'))
+
+@app.route('/import_database', methods=['POST'])
+def import_database():
+    """
+    Import an existing .engramdb database file.
+    
+    This route handles the upload of a .engramdb file, saves it to a temporary location,
+    and then replaces the current database with the imported one.
+    """
+    # Use the global db variable
+    global db
+    
+    try:
+        # Check if the post request has the file part
+        if 'database_file' not in request.files:
+            flash('No file part in the request', 'error')
+            return redirect(url_for('index'))
+            
+        file = request.files['database_file']
+        
+        # If user does not select file, browser also
+        # submits an empty part without filename
+        if file.filename == '':
+            flash('No selected file', 'error')
+            return redirect(url_for('index'))
+            
+        # Check if the file has the correct extension
+        if file and file.filename.endswith('.engramdb'):
+            # Create a temporary file to store the uploaded database
+            import tempfile
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.engramdb')
+            file.save(temp_file.name)
+            temp_file.close()
+            
+            # Clear the current database
+            try:
+                db.clear_all()
+                logger.info("Cleared existing database before import")
+            except Exception as e:
+                logger.warning(f"Error clearing database: {e}")
+                # Fallback to manual deletion
+                memory_ids = db.list_all()
+                for memory_id in memory_ids:
+                    try:
+                        db.delete(memory_id)
+                    except Exception:
+                        pass
+            
+            # Close the current database connection
+            del db
+            
+            # Replace the database file with our imported one
+            import shutil
+            import os
+            
+            # Backup the current database file first
+            if os.path.exists(DB_PATH):
+                backup_path = f"{DB_PATH}_backup_{int(time.time())}"
+                try:
+                    shutil.copytree(DB_PATH, backup_path)
+                    logger.info(f"Created backup of existing database at {backup_path}")
+                except Exception as e:
+                    logger.warning(f"Error creating backup: {e}")
+            
+            # If the database is a single file (not a directory)
+            if os.path.isfile(temp_file.name):
+                # Make sure the destination directory exists
+                os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+                
+                # Remove existing database files if they exist
+                if os.path.isdir(DB_PATH):
+                    shutil.rmtree(DB_PATH)
+                
+                # Create a new directory for the database
+                os.makedirs(DB_PATH, exist_ok=True)
+                
+                # Move the uploaded file to the database directory with a standard name
+                shutil.copy(temp_file.name, os.path.join(DB_PATH, "database.engramdb"))
+                logger.info(f"Copied imported file to {os.path.join(DB_PATH, 'database.engramdb')}")
+            
+            # Re-initialize the database connection
+            try:
+                try:
+                    # Try the file_based constructor
+                    db = Database.file_based(DB_PATH)
+                except Exception as file_based_error:
+                    logger.warning(f"Couldn't use Database.file_based: {file_based_error}")
+                    # For backwards compatibility, try using existing file
+                    imported_file = os.path.join(DB_PATH, "database.engramdb")
+                    if os.path.exists(imported_file):
+                        logger.info(f"Trying to use single file mode with {imported_file}")
+                        try:
+                            # Try single_file constructor if available
+                            db = Database.single_file(imported_file)
+                        except AttributeError:
+                            # Fall back to another constructor if available
+                            try:
+                                from engramdb import StorageType
+                                config = engramdb_py.DatabaseConfig(
+                                    storage_type=StorageType.SingleFile,
+                                    storage_path=imported_file,
+                                    cache_size=100
+                                )
+                                db = Database.new(config)
+                            except (AttributeError, ImportError):
+                                # Last resort - try using in-memory and show a warning
+                                logger.warning("Could not use single file database, falling back to in-memory")
+                                db = Database.in_memory()
+                                flash("Warning: Using in-memory database as fallback. Your data won't be persisted.", "warning")
+                    else:
+                        # Re-raise the original error
+                        raise file_based_error
+                        
+                memory_count = len(db.list_all())
+                flash(f"Database imported successfully! Found {memory_count} memories.", "success")
+            except Exception as e:
+                logger.error(f"Error re-initializing database: {e}", exc_info=True)
+                flash(f"Error opening imported database: {e}", "error")
+                
+                # Try to restore the backup
+                if os.path.exists(backup_path):
+                    try:
+                        shutil.rmtree(DB_PATH, ignore_errors=True)
+                        shutil.copytree(backup_path, DB_PATH)
+                        db = Database.file_based(DB_PATH)
+                        flash("Restored previous database from backup.", "warning")
+                    except Exception as restore_err:
+                        logger.error(f"Error restoring backup: {restore_err}", exc_info=True)
+                        flash("Could not restore previous database from backup.", "error")
+                        # Fall back to in-memory database
+                        db = Database.in_memory()
+            
+            # Remove the temporary file
+            try:
+                os.unlink(temp_file.name)
+            except Exception as e:
+                logger.warning(f"Error removing temporary file: {e}")
+        else:
+            flash('Invalid file type. Please upload a .engramdb file.', 'error')
+    
+    except Exception as e:
+        logger.error(f"Error during database import: {e}", exc_info=True)
+        flash(f"Error during database import: {e}", "error")
+    
     return redirect(url_for('index'))
 
 @app.errorhandler(500)
