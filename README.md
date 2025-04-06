@@ -8,7 +8,8 @@
 
 EngramDB is a specialized database system designed specifically for agent memory management. It provides efficient storage, retrieval, and querying of agent memories using a unified memory representation model.
 
-📚 **Documentation**: [https://engramdb.mintlify.app/](https://engramdb.mintlify.app/)
+📚 **Documentation**: [https://engramdb.mintlify.app/](https://engramdb.mintlify.app/)  
+📊 **Pitch Deck**: [EngramDB Pitch Deck (PDF)](deck/engramdb_pitch_deck.pdf)
 
 ## Core Features
 

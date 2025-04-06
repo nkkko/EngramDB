@@ -155,6 +155,7 @@ MEMORY_TYPE_COMPONENT = "component"
 MEMORY_TYPE_MESSAGE = "message"
 
 # Add a blueprint to serve the generated website
+from flask import Blueprint
 generated_site = Blueprint('generated_site', __name__, url_prefix='/generated')
 
 @dataclass
@@ -579,8 +580,16 @@ generated_site.register_blueprint({name}_bp)
                 print(f"Error importing route module '{name}': {e}")
     
     # Return available routes for display
-    return [rule.rule for rule in generated_site.url_map.iter_rules() 
-            if rule.endpoint != 'static' and not rule.rule.startswith('/generated/static')]
+    from werkzeug.routing import Map
+    if not hasattr(generated_site, 'url_map'):
+        generated_site.url_map = Map()
+        
+    # Get routes from the app instead since blueprint doesn't have direct access to its routes
+    return [rule.rule for rule in app.url_map.iter_rules() 
+            if rule.endpoint.startswith('generated_site.') and 
+            'static' not in rule.endpoint and 
+            not rule.rule.endswith('.css') and 
+            not rule.rule.endswith('.js')]
 
 def save_files_to_disk(context: AgentContext) -> Dict[str, Any]:
     """Save all components to disk"""
@@ -1261,12 +1270,19 @@ def run_integrated_server():
     from threading import Thread
     import sys
     
-    # We don't need to pre-initialize context as we use a global context now
-    # which will be initialized on first use
+    # Initialize context and register the generated site if any components exist
+    context = initialize_agent_context()
+    components = context.get_all_components()
+    if components:
+        print(f"Found {len(components)} existing components. Registering dynamic routes...")
+        register_generated_routes(context)
+        if generated_site not in app.blueprints.values():
+            app.register_blueprint(generated_site)
     
     # Start the Flask server in a separate thread
     def start_flask_server():
         print(f"Starting web interface at http://127.0.0.1:8080 for model {MODEL_NAME}")
+        print(f"Generated website will be available at http://127.0.0.1:8080/generated")
         # Set use_reloader=False to avoid duplicate processes
         app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
     
@@ -1280,13 +1296,12 @@ def run_integrated_server():
     print("This agent helps you build Flask websites with EngramDB for memory.")
     print("Type 'exit' to quit, 'save' to save files to disk.\n")
     print(f"Using model: {MODEL_NAME}\n")
-    print("Web interface is also running at http://127.0.0.1:8080\n")
+    print("Web interface is running at http://127.0.0.1:8080")
+    if components:
+        print("Your generated website is running at http://127.0.0.1:8080/generated\n")
     
     if IS_CLAUDE_MODEL:
         print("Note: Using Claude model with command parsing instead of function calling.\n")
-    
-    # Get the shared context
-    context = initialize_agent_context()
     
     while True:
         try:
@@ -1328,6 +1343,8 @@ def run_integrated_server():
                         if result.get("files"):
                             print("    Files:")
                             for f in result["files"]: print(f"      - {f}")
+                        # Remind user about the generated website
+                        print("\nYour generated website is running at http://127.0.0.1:8080/generated")
                     else:
                         print(f"  - Save command result: {result.get('message', 'Failed to save')}")
                 elif tool_name == "search_similar":
@@ -1342,7 +1359,18 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) > 1 and sys.argv[1] == "web":
+        # Initialize context and register the generated site if any components exist
+        context = initialize_agent_context()
+        components = context.get_all_components()
+        if components:
+            print(f"Found {len(components)} existing components. Registering dynamic routes...")
+            register_generated_routes(context)
+            if generated_site not in app.blueprints.values():
+                app.register_blueprint(generated_site)
+        
         print(f"Starting web interface at http://127.0.0.1:8080 for model {MODEL_NAME}")
+        if components:
+            print(f"Generated website is available at http://127.0.0.1:8080/generated")
         app.run(host='0.0.0.0', port=8080, debug=False) # Use debug=False for production/stable runs
     else:
         # Use integrated server by default (combines CLI and web server)

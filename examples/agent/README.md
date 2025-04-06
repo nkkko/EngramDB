@@ -56,19 +56,24 @@ This directory contains examples demonstrating how to use EngramDB with Pydantic
    python flask_website_generator.py
    ```
 
-   or with web interface:
+   or with web interface only:
    ```bash
    python flask_website_generator.py web
    ```
 
-3. Start by describing the website you want to build:
+2. Start by describing the website you want to build:
    ```
    You: I need a simple blog website with user authentication
    ```
 
-4. Continue the conversation, providing more details as the agent asks for them
+3. Continue the conversation, providing more details as the agent asks for them
 
-5. Type `save` at any time to save the generated files to disk
+4. Type `save` at any time to save the generated files to disk and register dynamic routes
+
+5. **New Feature**: Your generated website is automatically served at `/generated` path
+   - Access your running application at: http://127.0.0.1:8080/generated
+   - This eliminates the need to manually run the generated Flask application
+   - The generated files are still saved to disk for reference or deployment
 
 6. Type `exit` to quit the application
 

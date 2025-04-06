@@ -40,6 +40,11 @@ Start the agent:
 python flask_website_generator.py
 ```
 
+Or with web interface only:
+```bash
+python flask_website_generator.py web
+```
+
 ## Example Conversation
 
 ```
@@ -58,8 +63,18 @@ Suggested next steps:
 
 ## Available Commands
 
-- `save`: Saves all generated files to disk
+- `save`: Saves all generated files to disk and registers dynamic routes
 - `exit`: Quits the application
+
+## New Feature: Dynamic Website Preview
+
+Your generated website is automatically served at the `/generated` path when you run the agent. 
+
+- Access your running application at: http://127.0.0.1:8080/generated
+- This eliminates the need to manually run the generated Flask application
+- The generated files are still saved to disk for reference or deployment
+
+When you generate new components or modify existing ones, the dynamic routes are automatically updated.
 
 ## How It Works
 
