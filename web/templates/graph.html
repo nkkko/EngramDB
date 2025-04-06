@@ -67,6 +67,20 @@
         max-width: 400px;
         z-index: 100;
     }
+    
+    /* Active button styles */
+    #expandBtn.active, #contractBtn.active {
+        background-color: #0d6efd !important;
+        color: white !important;
+        box-shadow: 0 0 8px rgba(13, 110, 253, 0.5);
+        transform: scale(1.1);
+        transition: all 0.3s ease;
+    }
+    
+    /* Button press animation */
+    #expandBtn:active, #contractBtn:active {
+        transform: scale(0.95);
+    }
 </style>
 {% endblock %}
 
@@ -828,7 +842,7 @@
         function expandGraph() {
             debug('Expanding graph');
 
-            // Update physics parameters
+            // Update physics parameters more aggressively for visible change
             linkDistance += 50;
             chargeStrength -= 50;
 
@@ -907,31 +921,42 @@
                     break;
             }
 
-            // Reheat the simulation - safer approach without method chaining
+            // Reheat the simulation more aggressively for visible effect
             try {
                 debug('Reheating simulation after expand');
 
                 // Set cooldown ticks to 0 to keep running
                 graph.cooldownTicks(0);
-
-                // Try different methods to restart the simulation
+                
+                // Force a more dramatic restart by applying a stronger initial "jolt"
+                const data = graph.graphData();
+                data.nodes.forEach(node => {
+                    // Apply a stronger random displacement to make the effect more visible
+                    node.x += (Math.random() - 0.5) * 5;  // 10x stronger displacement
+                    node.y += (Math.random() - 0.5) * 5;
+                    
+                    // Also reset velocities to ensure movement
+                    if (node.vx !== undefined) {
+                        node.vx = (Math.random() - 0.5) * 2;
+                        node.vy = (Math.random() - 0.5) * 2;
+                    }
+                });
+                graph.graphData(data);
+                
+                // Slow down the alpha decay for longer-lasting motion
+                graph.d3AlphaDecay(0.01); // Slower decay = longer motion
+                
+                // Try to reset force simulation if available
                 if (typeof graph.resetForceSimulation === 'function') {
                     graph.resetForceSimulation();
-                } else {
-                    // Fallback: Slightly perturb node positions to restart
-                    const data = graph.graphData();
-                    data.nodes.forEach(node => {
-                        node.x += (Math.random() - 0.5) * 0.5;
-                        node.y += (Math.random() - 0.5) * 0.5;
-                    });
-                    graph.graphData(data);
                 }
 
                 // Allow simulation to end after a delay
                 setTimeout(() => {
                     debug('Cooling down simulation');
-                    graph.cooldownTicks(50);
-                }, 1000);
+                    graph.cooldownTicks(100); // Longer cooldown for more movement
+                    graph.d3AlphaDecay(0.02); // Reset to normal decay rate
+                }, 2000); // Longer animation time
             } catch (err) {
                 debug(`ERROR in expand graph: ${err}`, 'error');
                 console.error('Expand error:', err);
@@ -1023,31 +1048,56 @@
                     break;
             }
 
-            // Reheat the simulation - safer approach without method chaining
+            // Reheat the simulation more aggressively for visible effect
             try {
                 debug('Reheating simulation after contract');
 
                 // Set cooldown ticks to 0 to keep running
                 graph.cooldownTicks(0);
-
-                // Try different methods to restart the simulation
+                
+                // Force a more dramatic restart by applying a stronger initial "jolt"
+                const data = graph.graphData();
+                data.nodes.forEach(node => {
+                    // For contraction, we want nodes to move inward
+                    // Calculate vector from node to center
+                    const centerX = 0;
+                    const centerY = 0;
+                    const dx = centerX - node.x;
+                    const dy = centerY - node.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 0) {
+                        // Add a small force toward the center
+                        node.x += dx * 0.05;
+                        node.y += dy * 0.05;
+                    }
+                    
+                    // Also add some randomness to ensure movement
+                    node.x += (Math.random() - 0.5) * 3;
+                    node.y += (Math.random() - 0.5) * 3;
+                    
+                    // Reset velocities to ensure movement
+                    if (node.vx !== undefined) {
+                        node.vx = (Math.random() - 0.5) * 2;
+                        node.vy = (Math.random() - 0.5) * 2;
+                    }
+                });
+                graph.graphData(data);
+                
+                // Slow down the alpha decay for longer-lasting motion
+                graph.d3AlphaDecay(0.01); // Slower decay = longer motion
+                
+                // Try to reset force simulation if available
                 if (typeof graph.resetForceSimulation === 'function') {
                     graph.resetForceSimulation();
-                } else {
-                    // Fallback: Slightly perturb node positions to restart
-                    const data = graph.graphData();
-                    data.nodes.forEach(node => {
-                        node.x += (Math.random() - 0.5) * 0.5;
-                        node.y += (Math.random() - 0.5) * 0.5;
-                    });
-                    graph.graphData(data);
                 }
 
                 // Allow simulation to end after a delay
                 setTimeout(() => {
                     debug('Cooling down simulation');
-                    graph.cooldownTicks(50);
-                }, 1000);
+                    graph.cooldownTicks(100); // Longer cooldown for more movement
+                    graph.d3AlphaDecay(0.02); // Reset to normal decay rate
+                }, 2000); // Longer animation time
             } catch (err) {
                 debug(`ERROR in contract graph: ${err}`, 'error');
                 console.error('Contract error:', err);
@@ -1113,6 +1163,13 @@
                 // Update toggles
                 showDebugOverlayToggle.checked = false;
                 showEventLogToggle.checked = false;
+            } else {
+                // If turning on debug, show the debug overlay to provide feedback
+                const debugEl = document.getElementById('debug-info');
+                if (debugEl) {
+                    debugEl.style.display = 'block';
+                    showDebugOverlayToggle.checked = true;
+                }
             }
         });
 
@@ -1292,7 +1349,34 @@
             try {
                 debug('Expand button clicked');
                 if (graph) {
+                    // Enable debug overlay temporarily to show feedback
+                    const debugEl = document.getElementById('debug-info');
+                    const wasDebugVisible = debugEl.style.display === 'block';
+                    if (!wasDebugVisible) {
+                        debugEl.style.display = 'block';
+                    }
+                    
+                    // Show visual feedback on the button
+                    expandButton.classList.add('active');
+                    setTimeout(() => expandButton.classList.remove('active'), 1000);
+                    
+                    // Apply the expansion
                     expandGraph();
+                    
+                    // Update debug overlay with current settings
+                    debugEl.innerHTML = `
+                        Layout: ${layoutSelect.value}<br>
+                        Link Distance: ${linkDistance} (increased)<br>
+                        Charge Strength: ${chargeStrength} (decreased)<br>
+                        Nodes: ${graph.graphData().nodes.length}
+                    `;
+                    
+                    // Hide debug overlay after a delay if it wasn't visible before
+                    if (!wasDebugVisible && !DEBUG) {
+                        setTimeout(() => {
+                            debugEl.style.display = 'none';
+                        }, 3000);
+                    }
                 } else {
                     debug('Cannot expand graph - graph is null', 'warn');
                 }
@@ -1306,7 +1390,34 @@
             try {
                 debug('Contract button clicked');
                 if (graph) {
+                    // Enable debug overlay temporarily to show feedback
+                    const debugEl = document.getElementById('debug-info');
+                    const wasDebugVisible = debugEl.style.display === 'block';
+                    if (!wasDebugVisible) {
+                        debugEl.style.display = 'block';
+                    }
+                    
+                    // Show visual feedback on the button
+                    contractButton.classList.add('active');
+                    setTimeout(() => contractButton.classList.remove('active'), 1000);
+                    
+                    // Apply the contraction
                     contractGraph();
+                    
+                    // Update debug overlay with current settings
+                    debugEl.innerHTML = `
+                        Layout: ${layoutSelect.value}<br>
+                        Link Distance: ${linkDistance} (decreased)<br>
+                        Charge Strength: ${chargeStrength} (increased)<br>
+                        Nodes: ${graph.graphData().nodes.length}
+                    `;
+                    
+                    // Hide debug overlay after a delay if it wasn't visible before
+                    if (!wasDebugVisible && !DEBUG) {
+                        setTimeout(() => {
+                            debugEl.style.display = 'none';
+                        }, 3000);
+                    }
                 } else {
                     debug('Cannot contract graph - graph is null', 'warn');
                 }
