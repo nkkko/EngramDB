@@ -8,11 +8,22 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#4F46E5",
+    "primary": "#6366F1",
     "light": "#818CF8",
-    "dark": "#3730A3"
+    "dark": "#4338CA",
+    "background": {
+      "dark": "#111827",
+      "light": "#F9FAFB"
+    },
+    "anchors": {
+      "from": "#6366F1",
+      "to": "#8B5CF6"
+    }
   },
-  "theme": "mint",
+  "theme": "midnight",
+  "modeToggle": {
+    "default": "dark"
+  },
   "topbarLinks": [
     {
       "name": "GitHub",
@@ -23,10 +34,14 @@
     "name": "Get Started",
     "url": "/getting-started"
   },
+  "primaryTab": {
+    "name": "Docs"
+  },
   "navigation": {
     "groups": [
       {
         "group": "Getting Started",
+        "icon": "rocket",
         "pages": [
           "index",
           "introduction",
@@ -36,6 +51,7 @@
       },
       {
         "group": "API Reference",
+        "icon": "code",
         "pages": [
           "api-reference/memory-node",
           "api-reference/database",
@@ -45,6 +61,7 @@
       },
       {
         "group": "Examples",
+        "icon": "flask",
         "pages": [
           "examples/rust-examples",
           "examples/python-examples"
@@ -52,6 +69,7 @@
       },
       {
         "group": "Advanced Topics",
+        "icon": "lightbulb",
         "pages": [
           "advanced-topics/temporal-layers",
           "advanced-topics/connections",
@@ -60,6 +78,7 @@
       },
       {
         "group": "Contributing",
+        "icon": "code-branch",
         "pages": [
           "contributing"
         ]
@@ -84,6 +103,12 @@
     ]
   },
   "footerSocials": {
-    "github": "https://github.com/nkkko/engramdb"
-  }
+    "github": "https://github.com/nkkko/engramdb",
+    "twitter": "https://twitter.com/mintlify"
+  },
+  "feedback": {
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "backgroundImage": "images/background.png"
 }

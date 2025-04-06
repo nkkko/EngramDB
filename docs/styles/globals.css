@@ -1,3 +1,106 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom styles for Mintlify docs */
+:root {
+  --doc-code-background: rgba(99, 102, 241, 0.05);
+  --doc-shadow-color: rgba(99, 102, 241, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary-light;
+}
+
+/* Card hover effects */
+.hover-card {
+  @apply transition-all duration-300 hover:shadow-md hover:-translate-y-1;
+}
+
+/* Custom blockquote style */
+blockquote {
+  @apply border-l-4 border-primary pl-4 italic text-gray-700 dark:text-gray-300;
+}
+
+/* Custom code block styling */
+pre {
+  @apply bg-gray-50 dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800;
+}
+
+/* Button styles */
+.custom-button {
+  @apply px-4 py-2 rounded-md text-white bg-primary hover:bg-primary-dark transition-colors;
+}
+
+/* Add a subtle gradient to the background of specific elements */
+.hero-container {
+  @apply bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800;
+}
+
+/* Section dividers */
+.section-divider {
+  @apply w-full h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent my-8;
+}
+
+/* API method tags */
+.method-get {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+}
+
+.method-post {
+  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+}
+
+.method-put {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200;
+}
+
+.method-delete {
+  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+}
+
+/* Dark mode improvements */
+.dark .prose {
+  @apply text-gray-300;
+}
+
+.dark .prose a {
+  @apply text-primary-light hover:text-primary;
+}
+
+.dark .prose code {
+  @apply bg-gray-800 text-gray-200;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-600;
+}
+
+/* Animation for feature highlights */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(99, 102, 241, 0.3);
+  }
+}
+
+.feature-highlight {
+  animation: pulse-glow 3s infinite;
+}
