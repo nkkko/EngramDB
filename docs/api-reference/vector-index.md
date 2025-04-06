@@ -1,0 +1,252 @@
+# Vector Index API Reference
+
+The Vector Index is responsible for storing and searching vector embeddings in EngramDB. This document provides a detailed reference for the Vector Index API.
+
+## VectorIndex
+
+The `VectorIndex` class provides methods for indexing and searching vector embeddings.
+
+### Creating a Vector Index
+
+#### `VectorIndex::new()`
+
+Creates a new empty vector index.
+
+**Returns:**
+- A new `VectorIndex` instance
+
+**Example:**
+```rust
+let mut vector_index = VectorIndex::new();
+```
+
+### Managing Vectors
+
+#### `add(node)`
+
+Adds a memory node to the index.
+
+**Parameters:**
+- `node`: `&MemoryNode` - The memory node to add
+
+**Returns:**
+- `Result<()>` - Success or an error
+
+**Example:**
+```rust
+let memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+vector_index.add(&memory)?;
+```
+
+#### `remove(id)`
+
+Removes a memory node from the index.
+
+**Parameters:**
+- `id`: `Uuid` - The UUID of the memory node to remove
+
+**Returns:**
+- `Result<()>` - Success or an error
+
+**Example:**
+```rust
+vector_index.remove(memory_id)?;
+```
+
+#### `update(node)`
+
+Updates a memory node in the index.
+
+**Parameters:**
+- `node`: `&MemoryNode` - The memory node to update
+
+**Returns:**
+- `Result<()>` - Success or an error
+
+**Example:**
+```rust
+memory.set_embeddings(vec![0.2, 0.3, 0.4, 0.5]);
+vector_index.update(&memory)?;
+```
+
+### Searching
+
+#### `search(query, limit, threshold)`
+
+Performs a similarity search to find the most similar vectors.
+
+**Parameters:**
+- `query`: `&[f32]` - The query vector
+- `limit`: `usize` - Maximum number of results to return
+- `threshold`: `f32` - Minimum similarity threshold (0.0 to 1.0)
+
+**Returns:**
+- `Result<Vec<(Uuid, f32)>>` - A vector of (UUID, similarity) pairs, sorted by descending similarity
+
+**Example:**
+```rust
+let query_vector = vec![0.15, 0.25, 0.35, 0.45];
+let results = vector_index.search(&query_vector, 5, 0.0)?;
+
+for (memory_id, similarity) in results {
+    println!("Memory ID: {}, Similarity: {:.4}", memory_id, similarity);
+}
+```
+
+### Utility Methods
+
+#### `len()`
+
+Returns the number of vectors in the index.
+
+**Returns:**
+- `usize` - The number of vectors
+
+**Example:**
+```rust
+let count = vector_index.len();
+println!("Index contains {} vectors", count);
+```
+
+#### `is_empty()`
+
+Checks if the index is empty.
+
+**Returns:**
+- `bool` - True if the index is empty, false otherwise
+
+**Example:**
+```rust
+if vector_index.is_empty() {
+    println!("Index is empty");
+}
+```
+
+#### `get(id)`
+
+Gets a reference to a vector by its ID.
+
+**Parameters:**
+- `id`: `Uuid` - The UUID of the memory node
+
+**Returns:**
+- `Option<&Vec<f32>>` - A reference to the vector if found, otherwise None
+
+**Example:**
+```rust
+if let Some(vector) = vector_index.get(memory_id) {
+    println!("Vector: {:?}", vector);
+}
+```
+
+## Similarity Functions
+
+EngramDB provides several similarity functions for comparing vectors.
+
+### `cosine_similarity(a, b)`
+
+Computes the cosine similarity between two vectors.
+
+**Parameters:**
+- `a`: `&[f32]` - First vector
+- `b`: `&[f32]` - Second vector
+
+**Returns:**
+- `Option<f32>` - The cosine similarity value between the two vectors (between -1 and 1), or None if either vector is empty
+
+**Example:**
+```rust
+let vec1 = vec![0.1, 0.2, 0.3];
+let vec2 = vec![0.2, 0.3, 0.4];
+
+if let Some(similarity) = cosine_similarity(&vec1, &vec2) {
+    println!("Cosine similarity: {:.4}", similarity);
+}
+```
+
+### `dot_product(a, b)`
+
+Computes the dot product between two vectors.
+
+**Parameters:**
+- `a`: `&[f32]` - First vector
+- `b`: `&[f32]` - Second vector
+
+**Returns:**
+- `f32` - The dot product value, or 0.0 if the vectors have different lengths
+
+**Example:**
+```rust
+let vec1 = vec![0.1, 0.2, 0.3];
+let vec2 = vec![0.2, 0.3, 0.4];
+
+let dot = dot_product(&vec1, &vec2);
+println!("Dot product: {:.4}", dot);
+```
+
+### `euclidean_distance(a, b)`
+
+Computes the Euclidean distance between two vectors.
+
+**Parameters:**
+- `a`: `&[f32]` - First vector
+- `b`: `&[f32]` - Second vector
+
+**Returns:**
+- `Option<f32>` - The Euclidean distance between the two vectors, or None if the vectors have different lengths
+
+**Example:**
+```rust
+let vec1 = vec![0.1, 0.2, 0.3];
+let vec2 = vec![0.2, 0.3, 0.4];
+
+if let Some(distance) = euclidean_distance(&vec1, &vec2) {
+    println!("Euclidean distance: {:.4}", distance);
+}
+```
+
+## Implementation Notes
+
+The current implementation of `VectorIndex` uses a simple linear search approach for the MVP. This is suitable for small to medium-sized datasets but may not scale well to very large datasets.
+
+Future versions of EngramDB may implement more advanced indexing methods such as:
+
+- Hierarchical Navigable Small World (HNSW) graphs
+- Approximate Nearest Neighbor (ANN) algorithms
+- Locality-Sensitive Hashing (LSH)
+- Product Quantization
+
+These advanced methods would provide better performance for large-scale vector similarity search.
+
+## Example: Complete Vector Search Workflow
+
+Here's a complete example of how to use the vector index for similarity search:
+
+```rust
+// Create a vector index
+let mut vector_index = VectorIndex::new();
+
+// Create and add memory nodes
+let memory1 = MemoryNode::new(vec![1.0, 0.0, 0.0]); // X-axis
+let memory2 = MemoryNode::new(vec![0.7, 0.7, 0.0]); // 45 degrees in XY plane
+let memory3 = MemoryNode::new(vec![0.0, 1.0, 0.0]); // Y-axis
+let memory4 = MemoryNode::new(vec![0.0, 0.0, 1.0]); // Z-axis
+
+vector_index.add(&memory1)?;
+vector_index.add(&memory2)?;
+vector_index.add(&memory3)?;
+vector_index.add(&memory4)?;
+
+// Search for something closer to the X-axis
+let query = vec![0.9, 0.1, 0.0];
+let results = vector_index.search(&query, 2, 0.0)?;
+
+// Process results
+for (id, similarity) in results {
+    println!("Memory ID: {}, Similarity: {:.4}", id, similarity);
+    
+    // In a real application, you would load the full memory node here
+    // let memory = db.load(id)?;
+    // println!("Memory: {:?}", memory);
+}
+```

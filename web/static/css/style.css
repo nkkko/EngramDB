@@ -1,5 +1,56 @@
 /* Custom styles for EngramDB web interface */
 
+/* Graph Visualization styles */
+#graph-container {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #fafafa;
+}
+
+.graph-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    background-color: rgba(255,255,255,0.9);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    border-radius: 3px;
+}
+
+/* Relationship badge colors */
+.relation-association {
+    background-color: #4e79a7;
+}
+
+.relation-reference {
+    background-color: #59a14f;
+}
+
+.relation-predecessor {
+    background-color: #f28e2c;
+}
+
+.relation-successor {
+    background-color: #e15759;
+}
+
 body {
     background-color: #f5f7fa;
 }

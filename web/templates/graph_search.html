@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}EngramDB - Graph Search{% endblock %}
+
+{% block header %}Graph-Enhanced Search{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Search with Graph Constraints</h5>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('graph_search') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Search Type</label>
+                        <div class="form-text mb-2">
+                            Search for memories based on both vector similarity and graph connections.
+                        </div>
+                    </div>
+                    
+                    {% if embedding_model_available %}
+                    <div class="mb-3">
+                        <label for="query_text" class="form-label">Search Query</label>
+                        <textarea class="form-control" id="query_text" name="query_text" rows="3" 
+                                  placeholder="Enter your search query..."></textarea>
+                        <div class="form-text">
+                            Enter text to search for semantically similar memories
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="useTextEmbeddings" name="use_text_embeddings" value="true" checked>
+                        <label class="form-check-label" for="useTextEmbeddings">
+                            Generate embeddings from query text using multilingual model
+                        </label>
+                    </div>
+                    
+                    <div id="manualVectorSection" class="d-none">
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="query_vector" class="form-label">Vector Embeddings</label>
+                        <textarea class="form-control font-monospace" id="query_vector" name="query_vector" rows="3" 
+                                  placeholder="[0.1, 0.2, 0.3, 0.4]" {% if not embedding_model_available %}required{% endif %}></textarea>
+                        <div class="form-text">
+                            Enter as JSON array or space-separated numbers
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="btn-group w-100">
+                            <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(4)">
+                                Random (4D)
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(16)">
+                                Random (16D)
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="generateRandomEmbeddings(384)">
+                                Random (384D)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {% if embedding_model_available %}
+                    </div> <!-- End of manualVectorSection -->
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="threshold" class="form-label">Similarity Threshold (0.0 - 1.0)</label>
+                        <input type="range" class="form-range" min="0" max="1" step="0.1" id="threshold" name="threshold" value="0.5">
+                        <div class="d-flex justify-content-between">
+                            <span>Min: 0.0</span>
+                            <span id="thresholdValue">0.5</span>
+                            <span>Max: 1.0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="limit" class="form-label">Maximum Results</label>
+                        <input type="number" class="form-control" id="limit" name="limit" min="1" max="100" value="10">
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <label for="connected_to" class="form-label">Connected to Memory</label>
+                        <select class="form-select" id="connected_to" name="connected_to">
+                            <option value="">Any memory (no filter)</option>
+                            {% for memory in all_memories %}
+                                <option value="{{ memory.id }}">{{ memory.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            Filter results to only show memories connected to the selected memory.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="relationship_type" class="form-label">Relationship Type</label>
+                        <select class="form-select" id="relationship_type" name="relationship_type">
+                            {% for rel_type in relationship_types %}
+                                <option value="{{ rel_type.id }}">{{ rel_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            Filter by relationship type (only applies if "Connected to Memory" is selected).
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Search Results</h5>
+            </div>
+            <div class="card-body">
+                {% if results %}
+                    <table class="table table-striped" id="search-results">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Importance</th>
+                                <th>Similarity</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for memory in results %}
+                                <tr>
+                                    <td>{{ memory.title }}</td>
+                                    <td>{{ memory.category }}</td>
+                                    <td>{{ "%.1f"|format(memory.importance) }}</td>
+                                    <td>{{ memory.similarity if memory.similarity != 'N/A' else 'N/A' }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('view_memory', memory_id=memory.id) }}" class="btn btn-outline-primary">View</a>
+                                            <a href="{{ url_for('view_connections', memory_id=memory.id) }}" class="btn btn-outline-secondary">Connections</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="alert alert-info">
+                        No search results yet. Use the search form to find memories.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Update threshold value display
+    document.getElementById('threshold').addEventListener('input', function() {
+        document.getElementById('thresholdValue').textContent = this.value;
+    });
+    
+    // Generate random embeddings with specified dimensions
+    function generateRandomEmbeddings(dimensions) {
+        let embeddings = [];
+        for (let i = 0; i < dimensions; i++) {
+            embeddings.push(parseFloat((Math.random() * 2 - 1).toFixed(4)));
+        }
+        document.getElementById('query_vector').value = JSON.stringify(embeddings);
+    }
+    
+    {% if embedding_model_available %}
+    // Toggle between text-based and manual vector inputs
+    document.getElementById('useTextEmbeddings').addEventListener('change', function() {
+        const manualSection = document.getElementById('manualVectorSection');
+        if (this.checked) {
+            manualSection.classList.add('d-none');
+        } else {
+            manualSection.classList.remove('d-none');
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,637 @@
+{% extends "base.html" %}
+
+{% block title %}EngramDB - Memory Graph{% endblock %}
+
+{% block header %}Memory Network Visualization{% endblock %}
+
+{% block head %}
+<!-- D3.js for graph visualization -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<!-- Force Graph library -->
+<script src="https://unpkg.com/force-graph"></script>
+<style>
+    #graph-container {
+        width: 100%;
+        height: 600px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+    }
+    .graph-controls {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 10;
+        background-color: rgba(255,255,255,0.9);
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        max-height: 500px;
+        overflow-y: auto;
+        width: 200px;
+        transition: all 0.3s ease;
+    }
+    .graph-controls:hover {
+        background-color: rgba(255,255,255,1);
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 7px;
+        font-size: 0.85rem;
+    }
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        border-radius: 3px;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+    .graph-controls h6 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-weight: 600;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Memory Graph</h5>
+        <div class="d-flex align-items-center">
+            <div class="form-check form-switch me-3">
+                <input class="form-check-input" type="checkbox" id="showNodeLabels">
+                <label class="form-check-label" for="showNodeLabels">Node Labels</label>
+            </div>
+            <div class="form-check form-switch me-3">
+                <input class="form-check-input" type="checkbox" id="showLinkLabels">
+                <label class="form-check-label" for="showLinkLabels">Link Labels</label>
+            </div>
+            <div class="input-group input-group-sm me-3" style="width: 200px;">
+                <label class="input-group-text" for="physicsAlgorithm">Layout</label>
+                <select class="form-select form-select-sm" id="physicsAlgorithm">
+                    <option value="forceSimulation" selected>Force Simulation (D3)</option>
+                    <option value="d3ForceDirected">D3 Force Directed</option>
+                    <option value="forceAtlas2">Force Atlas 2</option>
+                    <option value="ngraph">Ngraph (Fast)</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-secondary" id="zoomInBtn">
+                    <i class="bi bi-zoom-in"></i> Zoom In
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="zoomOutBtn">
+                    <i class="bi bi-zoom-out"></i> Zoom Out
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="resetBtn">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset View
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body position-relative">
+        <div id="graph-container"></div>
+        
+        <div class="graph-controls">
+            <h6>Relationship Types</h6>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4e79a7;"></div>
+                <span>Association</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #9467bd;"></div>
+                <span>Causation</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #8c564b;"></div>
+                <span>Sequence</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #d62728;"></div>
+                <span>Contains</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #17becf;"></div>
+                <span>Part Of</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #59a14f;"></div>
+                <span>Reference</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #bcbd22;"></div>
+                <span>PrecededBy</span>
+            </div>
+            
+            <h6 class="mt-3">Node Categories</h6>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4e79a7;"></div>
+                <span>Work</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f28e2c;"></div>
+                <span>Personal</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #59a14f;"></div>
+                <span>Research</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">Memory List</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Importance</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for node in nodes %}
+                        <tr>
+                            <td>{{ node.title }}</td>
+                            <td>{{ node.category }}</td>
+                            <td>{{ "%.1f"|format(node.importance) }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('view_memory', memory_id=node.id) }}" class="btn btn-outline-primary">View</a>
+                                    <a href="{{ url_for('view_connections', memory_id=node.id) }}" class="btn btn-outline-secondary">Connections</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Graph data from the server
+    const graphData = {
+        nodes: {{ nodes|tojson }},
+        links: {{ edges|tojson }}
+    };
+    
+    // Debug: Check if we have data to render
+    console.log("Graph data:", graphData);
+    
+    // Add a message if no nodes
+    if (graphData.nodes.length === 0) {
+        document.getElementById('graph-container').innerHTML = 
+            '<div class="alert alert-info mt-3">No memories found to display in the graph. Create memories to visualize them.</div>';
+    }
+    
+    // Add a message if no links
+    if (graphData.nodes.length > 0 && graphData.links.length === 0) {
+        document.getElementById('graph-container').innerHTML = 
+            '<div class="alert alert-info mt-3">No connections between memories. Create connections to visualize the graph.</div>';
+    }
+    
+    // Only initialize the graph if we have data
+    if (graphData.nodes.length > 0 && graphData.links.length > 0) {
+        // Ensure the graph container is visible before rendering
+        const graphContainer = document.getElementById('graph-container');
+        graphContainer.style.minHeight = '600px';
+        // Make sure all sources and targets in links exist as nodes
+        const nodeIds = new Set(graphData.nodes.map(node => node.id));
+        const validLinks = graphData.links.filter(link => 
+            nodeIds.has(link.source) && nodeIds.has(link.target)
+        );
+        
+        console.log("Valid links:", validLinks);
+        
+        // Color mappings for relationship types
+        const typeColors = {
+            'association': '#4e79a7',
+            'causation': '#9467bd',
+            'sequence': '#8c564b',
+            'contains': '#d62728',
+            'partof': '#17becf',
+            'reference': '#59a14f',
+            'predecessor': '#f28e2c',
+            'successor': '#e15759',
+            'precededby': '#bcbd22',
+            'default': '#76b7b2'
+        };
+        
+        // Explicitly convert nodes and links to the format expected by ForceGraph
+        const nodesArray = graphData.nodes.map(node => ({
+            id: node.id,
+            title: node.title,
+            category: node.category,
+            importance: node.importance
+        }));
+        
+        const linksArray = validLinks.map(link => ({
+            source: link.source,
+            target: link.target,
+            type: link.type,
+            strength: link.strength
+        }));
+        
+        // Define physics algorithm configurations
+        const physicsConfigs = {
+            forceSimulation: {
+                d3: {
+                    alphaTarget: 0,
+                    alphaDecay: 0.0228,
+                    velocityDecay: 0.4,
+                    forces: [
+                        {
+                            force: 'link',
+                            distance: 100,
+                            iterations: 1
+                        },
+                        {
+                            force: 'charge',
+                            strength: -120,
+                            distanceMax: 2000
+                        },
+                        {
+                            force: 'center'
+                        }
+                    ]
+                }
+            },
+            d3ForceDirected: {
+                d3: {
+                    alphaDecay: 0.015,
+                    velocityDecay: 0.1,
+                    forces: [
+                        {
+                            force: 'link',
+                            id: 'id',
+                            distance: 80
+                        },
+                        {
+                            force: 'charge',
+                            strength: -150
+                        },
+                        {
+                            force: 'center',
+                            x: 0,
+                            y: 0
+                        },
+                        {
+                            force: 'radial',
+                            x: 0,
+                            y: 0,
+                            strength: 0.05
+                        }
+                    ]
+                }
+            },
+            forceAtlas2: {
+                forceEngine: 'forceAtlas2',
+                forceAtlas2: {
+                    gravitationalConstant: -100,
+                    centralGravity: 0.01,
+                    springLength: 100,
+                    springConstant: 0.08,
+                    damping: 0.4,
+                    avoidOverlap: 1
+                }
+            },
+            ngraph: {
+                forceEngine: 'ngraph',
+                ngraphPhysics: {
+                    timeStep: 20,
+                    gravity: -1.2,
+                    theta: 0.8,
+                    springLength: 100,
+                    springCoefficient: 0.0008,
+                    dragCoefficient: 0.02
+                }
+            }
+        };
+        
+        // Initialize with the default physics algorithm
+        const defaultPhysics = 'forceSimulation';
+        const physicsAlgorithmSelect = document.getElementById('physicsAlgorithm');
+        physicsAlgorithmSelect.value = defaultPhysics;
+        
+        // Initialize the graph
+        const Graph = ForceGraph()
+            (document.getElementById('graph-container'))
+            .graphData({
+                nodes: nodesArray,
+                links: linksArray
+            })
+            // Apply the default physics configuration
+            .d3Force('link', null) // Remove default to apply custom
+            .d3Force('charge', null)
+            .d3Force('center', null)
+            // Set up the physics algorithm
+            .dagMode(null) // No hierarchical layout by default
+            // Set common properties
+            .nodeId('id')
+            .nodeVal('importance')  // Use importance for node size
+            .nodeLabel(node => `${node.title} (${node.category})`)
+            .nodeColor(node => {
+                // Color nodes by category
+                const categories = {
+                    'work': '#4e79a7',
+                    'personal': '#f28e2c', 
+                    'research': '#59a14f',
+                    'uncategorized': '#76b7b2',
+                    'default': '#76b7b2'
+                };
+                return categories[node.category.toLowerCase()] || categories.default;
+            })
+            .nodeRelSize(8)  // Base node size
+            .nodeCanvasObject((node, ctx, globalScale) => {
+                // Custom node rendering
+                const size = 5 + node.importance * 10;
+                
+                // Node circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+                ctx.fillStyle = node.color;
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5 / globalScale;
+                ctx.stroke();
+                
+                // Draw node labels if enabled
+                const showLabels = document.getElementById('showNodeLabels').checked;
+                if (showLabels) {
+                    const fontSize = 12 / globalScale;
+                    const label = node.title;
+                    
+                    // Draw background for better readability
+                    const textWidth = ctx.measureText(label).width;
+                    const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.4);
+                    
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.fillRect(
+                        node.x - bckgDimensions[0] / 2, 
+                        node.y + size + 2, 
+                        bckgDimensions[0],
+                        bckgDimensions[1]
+                    );
+                    
+                    // Draw text
+                    ctx.font = `${fontSize}px Sans-Serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#333';
+                    ctx.fillText(
+                        label,
+                        node.x,
+                        node.y + size + 2 + bckgDimensions[1]/2
+                    );
+                }
+            })
+            .linkColor(link => typeColors[link.type] || typeColors.default)
+            .linkWidth(link => Math.max(1, link.strength * 5)) // Make links more visible
+            .linkDirectionalArrowLength(6)
+            .linkDirectionalArrowRelPos(1)
+            .linkCurvature(0.2)  // Increase curvature for better visibility
+            .linkDirectionalParticles(2)  // Add particles for visual interest
+            .linkDirectionalParticleWidth(link => link.strength * 2)
+            // Set up directional arrow rendering
+            .linkDirectionalArrowLength(6)
+            .linkDirectionalArrowRelPos(1)
+            .linkDirectionalArrowColor(link => typeColors[link.type] || typeColors.default)
+            
+            // Custom object to render both the link and its label
+            .linkCanvasObjectMode(() => 'replace')
+            .linkCanvasObject((link, ctx, globalScale) => {
+                // Draw the link line
+                const start = link.source;
+                const end = link.target;
+                
+                // Skip if points are not defined
+                if (!start || !end || typeof start.x !== 'number' || typeof end.x !== 'number') return;
+                
+                // Draw the link line
+                const stroke = typeColors[link.type] || typeColors.default;
+                const lineWidth = Math.max(1, link.strength * 3);
+                
+                ctx.beginPath();
+                ctx.strokeStyle = stroke;
+                ctx.lineWidth = lineWidth;
+                ctx.moveTo(start.x, start.y);
+                ctx.lineTo(end.x, end.y);
+                ctx.stroke();
+                
+                // Add directional arrow
+                const arrowLength = 6;
+                const arrowRelPos = 1; // position along the line (0: start, 1: end)
+                
+                // Calculate the point along the line
+                const isRelative = true;
+                const vLine = { x: end.x - start.x, y: end.y - start.y };
+                const lLine = Math.sqrt(Math.pow(vLine.x, 2) + Math.pow(vLine.y, 2));
+                const posRelativeToLine = isRelative ? arrowRelPos : Math.min(1, arrowRelPos / lLine);
+                const arrowX = start.x + (vLine.x * posRelativeToLine);
+                const arrowY = start.y + (vLine.y * posRelativeToLine);
+                
+                // Calculate the arrow angle
+                const arrowAngle = Math.atan2(end.y - start.y, end.x - start.x);
+                
+                // Draw the arrow
+                ctx.save();
+                ctx.translate(arrowX, arrowY);
+                ctx.rotate(arrowAngle);
+                ctx.beginPath();
+                ctx.moveTo(-arrowLength, -arrowLength * 0.5);
+                ctx.lineTo(0, 0);
+                ctx.lineTo(-arrowLength, arrowLength * 0.5);
+                ctx.fillStyle = stroke;
+                ctx.fill();
+                ctx.restore();
+                
+                // Only render labels if they're enabled
+                if (document.getElementById('showLinkLabels').checked) {
+                    // Only render labels when zoomed in enough
+                    if (globalScale < 1.2) return;
+                    
+                    // Position at the middle of the link
+                    const midX = start.x + (end.x - start.x) / 2;
+                    const midY = start.y + (end.y - start.y) / 2;
+                    
+                    // Prepare the label
+                    const label = `${link.type} (${link.strength})`;
+                    const fontSize = Math.max(14, 14 / globalScale);
+                    
+                    // Measure the text for background
+                    ctx.font = `${fontSize}px Sans-Serif`;
+                    const textWidth = ctx.measureText(label).width;
+                    const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.4);
+                    
+                    // Draw background for better readability
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.fillRect(
+                        midX - bckgDimensions[0] / 2,
+                        midY - bckgDimensions[1] / 2,
+                        bckgDimensions[0],
+                        bckgDimensions[1]
+                    );
+                    
+                    // Draw text
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#333';
+                    ctx.fillText(label, midX, midY);
+                }
+            })
+            .onNodeClick(node => {
+                // Navigate to memory details when node is clicked
+                window.location.href = `{{ url_for('view_memory', memory_id='NODE_ID') }}`.replace('NODE_ID', node.id);
+            });
+        
+        // Add zoom controls
+        document.getElementById('zoomInBtn').addEventListener('click', () => {
+            Graph.zoom(Graph.zoom() * 1.5);
+        });
+        
+        document.getElementById('zoomOutBtn').addEventListener('click', () => {
+            Graph.zoom(Graph.zoom() / 1.5);
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            Graph.zoomToFit(400);
+        });
+        
+        // Function to apply a physics algorithm configuration
+        const applyPhysicsConfig = (algorithmKey) => {
+            // Reset any existing physics
+            Graph
+                .d3Force('link', null)
+                .d3Force('charge', null)
+                .d3Force('center', null)
+                .d3Force('radial', null)
+                .forceEngine(null);
+                
+            // Get configuration for selected algorithm
+            const config = physicsConfigs[algorithmKey];
+            
+            // Apply the new configuration
+            if (config.forceEngine) {
+                // For non-D3 force engines
+                Graph.forceEngine(config.forceEngine);
+                
+                // Apply specific engine configurations
+                if (config.forceEngine === 'forceAtlas2') {
+                    Object.entries(config.forceAtlas2).forEach(([key, value]) => {
+                        Graph.forceAtlas2[key](value);
+                    });
+                } else if (config.forceEngine === 'ngraph') {
+                    Object.entries(config.ngraphPhysics).forEach(([key, value]) => {
+                        Graph.ngraphPhysics[key](value);
+                    });
+                }
+            } else if (config.d3) {
+                // For D3 force simulations
+                const d3Config = config.d3;
+                
+                // Set general parameters
+                if (d3Config.alphaTarget !== undefined) Graph.d3AlphaTarget(d3Config.alphaTarget);
+                if (d3Config.alphaDecay !== undefined) Graph.d3AlphaDecay(d3Config.alphaDecay);
+                if (d3Config.velocityDecay !== undefined) Graph.d3VelocityDecay(d3Config.velocityDecay);
+                
+                // Apply forces
+                if (d3Config.forces) {
+                    d3Config.forces.forEach(forceConfig => {
+                        if (forceConfig.force === 'link') {
+                            const linkForce = d3.forceLink(Graph.graphData().links)
+                                .id(d => d.id);
+                                
+                            if (forceConfig.distance) linkForce.distance(forceConfig.distance);
+                            if (forceConfig.iterations) linkForce.iterations(forceConfig.iterations);
+                            
+                            Graph.d3Force('link', linkForce);
+                        } else if (forceConfig.force === 'charge') {
+                            Graph.d3Force('charge', d3.forceManyBody()
+                                .strength(forceConfig.strength || -30)
+                                .distanceMax(forceConfig.distanceMax || 1000));
+                        } else if (forceConfig.force === 'center') {
+                            Graph.d3Force('center', d3.forceCenter(
+                                forceConfig.x || 0,
+                                forceConfig.y || 0
+                            ));
+                        } else if (forceConfig.force === 'radial') {
+                            Graph.d3Force('radial', d3.forceRadial(
+                                100,
+                                forceConfig.x || 0,
+                                forceConfig.y || 0
+                            ).strength(forceConfig.strength || 0.1));
+                        }
+                    });
+                }
+            }
+            
+            // Restart the simulation
+            Graph.numDimensions(2);  // Reset to 2D
+            Graph.resetProps();  // Reset internal props
+            Graph.cooldownTicks(300);  // Set a cooldown period
+            Graph.cooldownTime(15000);  // Max cooldown time
+            Graph.zoomToFit(400, 500);  // Fit view to graph
+        };
+        
+        // Apply the default physics algorithm
+        applyPhysicsConfig(defaultPhysics);
+        
+        // Handle physics algorithm changes
+        physicsAlgorithmSelect.addEventListener('change', (event) => {
+            const selectedAlgorithm = event.target.value;
+            applyPhysicsConfig(selectedAlgorithm);
+        });
+        
+        // Add label toggle handlers
+        document.getElementById('showNodeLabels').addEventListener('change', () => {
+            // Force graph redraw when node labels are toggled
+            Graph.nodeRelSize(Graph.nodeRelSize()); // This forces a redraw
+        });
+        
+        document.getElementById('showLinkLabels').addEventListener('change', () => {
+            // Force graph redraw when link labels are toggled
+            Graph.linkWidth(Graph.linkWidth()); // This forces a redraw
+        });
+        
+        // Make graph responsive to window resizing
+        window.addEventListener('resize', () => {
+            // Adjust the graph when window is resized
+            Graph.width(document.getElementById('graph-container').clientWidth);
+            Graph.height(document.getElementById('graph-container').clientHeight);
+        });
+        
+        // Make sure the graph initially fits all nodes
+        let initialFitAttempts = 0;
+        const attemptToFit = () => {
+            initialFitAttempts++;
+            
+            try {
+                if (graphContainer.clientWidth > 0 && graphContainer.clientHeight > 0) {
+                    Graph.zoomToFit(400, 500); // Longer duration for smoother animation
+                } else if (initialFitAttempts < 5) {
+                    // Try again in a bit if the container isn't ready yet
+                    setTimeout(attemptToFit, 500);
+                }
+            } catch (e) {
+                console.error("Error fitting graph to view:", e);
+            }
+        };
+        
+        // Initial fit after a delay to ensure rendering
+        setTimeout(attemptToFit, 1000);
+    }
+</script>
+{% endblock %}

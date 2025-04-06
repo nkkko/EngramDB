@@ -1,0 +1,127 @@
+# Getting Started with EngramDB
+
+This guide will help you get started with EngramDB, covering installation, basic setup, and simple usage examples.
+
+## Prerequisites
+
+- Rust 2021 edition (for Rust development)
+- Cargo (for building from source)
+- Python 3.7+ (for Python bindings)
+- Flask (for web interface)
+
+## Installation
+
+### Rust Library
+
+Clone the repository and build the project:
+
+```bash
+git clone https://github.com/yourusername/engramdb.git
+cd engramdb
+cargo build
+```
+
+To run tests:
+
+```bash
+cargo test
+```
+
+### Python Package
+
+Install using pip:
+
+```bash
+pip install engramdb-py
+```
+
+Or build from source:
+
+```bash
+cd engramdb/python
+pip install maturin
+maturin develop
+```
+
+### Web Interface
+
+The web interface provides a visual way to interact with the database:
+
+```bash
+# Quick start with the provided script
+cd web
+./run_web.sh
+
+# Or manual setup
+cd web
+python -m venv venv_app
+source venv_app/bin/activate
+pip install flask==2.3.3 werkzeug==2.3.7 flask-wtf==1.2.1
+python app_full.py
+```
+
+Once running, access the web interface at: http://localhost:8082
+
+## Basic Usage
+
+### Rust
+
+```rust
+use engramdb::{Database, MemoryNode};
+use engramdb::core::AttributeValue;
+
+// Create an in-memory database
+let mut db = Database::in_memory();
+
+// Create a memory node
+let mut memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+memory.set_attribute("title".to_string(), 
+    AttributeValue::String("Important information".to_string()));
+
+// Save to database
+db.save(&memory)?;
+
+// Search for similar memories
+let query_vector = vec![0.15, 0.25, 0.35, 0.45];
+let results = db.search_similar(&query_vector, 5, 0.0)?;
+
+// Process results
+for (memory_id, similarity) in results {
+    let memory = db.load(memory_id)?;
+    println!("Memory: {:?}, Similarity: {}", memory, similarity);
+}
+```
+
+### Python
+
+```python
+import engramdb
+import numpy as np
+
+# Create an in-memory database
+db = engramdb.Database.in_memory()
+
+# Create a memory node with numpy embeddings
+embeddings = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
+memory = engramdb.MemoryNode(embeddings)
+memory.set_attribute("title", "Important information")
+memory.set_attribute("importance", 0.8)
+
+# Save to database
+memory_id = db.save(memory)
+
+# Search for similar memories
+query_vector = np.array([0.15, 0.25, 0.35, 0.45], dtype=np.float32)
+results = db.search_similar(query_vector, limit=5, threshold=0.0)
+
+# Process results
+for memory_id, similarity in results:
+    memory = db.load(memory_id)
+    print(f"Memory: {memory.get_attribute('title')}, Similarity: {similarity:.4f}")
+```
+
+## Next Steps
+
+- Explore the [Core Concepts](core-concepts.md) to understand the fundamental building blocks of EngramDB
+- Check out the [API Reference](api-reference/memory-node.md) for detailed information on the available APIs
+- See the [Examples](examples/rust-examples.md) for more complex usage scenarios

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}EngramDB - Memory Connections{% endblock %}
+
+{% block header %}Connections for "{{ memory.title }}"{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Left side - Current Connections -->
+    <div class="col-md-7">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Existing Connections</h5>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="connectionTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="outgoing-tab" data-bs-toggle="tab" 
+                                data-bs-target="#outgoing" type="button" role="tab" aria-selected="true">
+                            Outgoing ({{ outgoing_connections|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="incoming-tab" data-bs-toggle="tab" 
+                                data-bs-target="#incoming" type="button" role="tab" aria-selected="false">
+                            Incoming ({{ incoming_connections|length }})
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content pt-3" id="connectionTabsContent">
+                    <!-- Outgoing Connections Tab -->
+                    <div class="tab-pane fade show active" id="outgoing" role="tabpanel">
+                        {% if outgoing_connections %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Target Memory</th>
+                                            <th>Relationship</th>
+                                            <th>Strength</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for conn in outgoing_connections %}
+                                            <tr>
+                                                <td>
+                                                    <a href="{{ url_for('view_memory', memory_id=conn.id) }}">
+                                                        {{ conn.title }}
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if conn.type == 'association' %}bg-primary
+                                                        {% elif conn.type == 'reference' %}bg-info
+                                                        {% elif conn.type == 'predecessor' %}bg-success
+                                                        {% elif conn.type == 'successor' %}bg-warning
+                                                        {% else %}bg-secondary{% endif %}">
+                                                        {{ conn.type }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ conn.strength }}</td>
+                                                <td>
+                                                    <form method="POST" action="{{ url_for('remove_connection', source_id=memory.id, target_id=conn.id) }}" 
+                                                          onsubmit="return confirm('Are you sure you want to remove this connection?');">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            Remove
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                This memory has no outgoing connections.
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Incoming Connections Tab -->
+                    <div class="tab-pane fade" id="incoming" role="tabpanel">
+                        {% if incoming_connections %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Source Memory</th>
+                                            <th>Relationship</th>
+                                            <th>Strength</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for conn in incoming_connections %}
+                                            <tr>
+                                                <td>
+                                                    <a href="{{ url_for('view_memory', memory_id=conn.id) }}">
+                                                        {{ conn.title }}
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if conn.type == 'association' %}bg-primary
+                                                        {% elif conn.type == 'reference' %}bg-info
+                                                        {% elif conn.type == 'predecessor' %}bg-success
+                                                        {% elif conn.type == 'successor' %}bg-warning
+                                                        {% else %}bg-secondary{% endif %}">
+                                                        {{ conn.type }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ conn.strength }}</td>
+                                                <td>
+                                                    <a href="{{ url_for('view_connections', memory_id=conn.id) }}" 
+                                                       class="btn btn-sm btn-outline-secondary">
+                                                        View Source
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                This memory has no incoming connections.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right side - Create New Connection -->
+    <div class="col-md-5">
+        <div class="card shadow">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Create New Connection</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('create_connection', source_id=memory.id) }}">
+                    <div class="mb-3">
+                        <label for="target_id" class="form-label">Target Memory</label>
+                        <select class="form-select" id="target_id" name="target_id" required>
+                            <option value="">Select a target memory...</option>
+                            {% for other in all_memories %}
+                                <option value="{{ other.id }}">{{ other.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            The memory that will be connected to from the current memory.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="relationship_type" class="form-label">Relationship Type</label>
+                        <select class="form-select" id="relationship_type" name="relationship_type" required>
+                            {% for rel_type in relationship_types %}
+                                <option value="{{ rel_type.id }}">{{ rel_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            The type of relationship between the memories.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="strength" class="form-label">Connection Strength (0.0 - 1.0)</label>
+                        <input type="range" class="form-range" min="0" max="1" step="0.1" id="strength" name="strength" value="1.0">
+                        <div class="d-flex justify-content-between">
+                            <span>Weak (0.0)</span>
+                            <span id="strengthValue">1.0</span>
+                            <span>Strong (1.0)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="bidirectional" name="bidirectional" value="true">
+                        <label class="form-check-label" for="bidirectional">
+                            Create bidirectional connection
+                        </label>
+                        <div class="form-text">
+                            If checked, a reverse connection will be created from the target to this memory.
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Create Connection</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('view_memory', memory_id=memory.id) }}" class="btn btn-outline-secondary">
+        Back to Memory
+    </a>
+    <a href="{{ url_for('memory_graph') }}" class="btn btn-outline-primary ms-2">
+        View Full Graph
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Update the strength value display
+    document.getElementById('strength').addEventListener('input', function() {
+        document.getElementById('strengthValue').textContent = this.value;
+    });
+</script>
+{% endblock %}

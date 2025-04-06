@@ -1,0 +1,317 @@
+# Working with Temporal Layers
+
+Temporal layers are a key feature of EngramDB that allow you to track how memories evolve over time. This document explains how to work with temporal layers effectively.
+
+## What are Temporal Layers?
+
+A temporal layer represents a version of a memory node at a specific point in time. Each layer contains:
+
+- A unique identifier
+- A timestamp when the layer was created
+- Optionally, the vector embeddings at that point in time
+- Optionally, the attributes at that point in time
+- A reason explaining why this layer was created
+
+Temporal layers enable EngramDB to maintain a history of how memories change and evolve, which is crucial for agent systems that learn and update their knowledge over time.
+
+## Creating Temporal Layers
+
+When you want to update a memory node but preserve its previous state, you should create a temporal layer before making changes.
+
+### Rust Example
+
+```rust
+use engramdb::{Database, MemoryNode};
+use engramdb::core::{AttributeValue, TemporalLayer};
+use std::collections::HashMap;
+
+// Load an existing memory
+let mut memory = db.load(memory_id)?;
+
+// Save the current state as a temporal layer
+let old_embeddings = memory.embeddings().to_vec();
+
+let mut old_attributes = HashMap::new();
+for (key, value) in memory.attributes() {
+    old_attributes.insert(key.clone(), value.clone());
+}
+
+let layer = TemporalLayer::new(
+    Some(old_embeddings),
+    Some(old_attributes),
+    "Updated with new information".to_string()
+);
+
+memory.add_temporal_layer(layer);
+
+// Now update the memory
+memory.set_embeddings(vec![0.15, 0.25, 0.35, 0.45]);
+memory.set_attribute(
+    "title".to_string(), 
+    AttributeValue::String("Updated knowledge".to_string())
+);
+
+// Save the updated memory
+db.save(&memory)?;
+```
+
+### Python Example
+
+```python
+import engramdb
+import numpy as np
+
+# Load an existing memory
+memory = db.load(memory_id)
+
+# Save the current state as a temporal layer
+old_embeddings = memory.embeddings()
+old_attributes = {
+    "title": memory.get_attribute("title"),
+    "confidence": memory.get_attribute("confidence")
+}
+
+layer = engramdb.TemporalLayer(
+    old_embeddings,
+    old_attributes,
+    "Updated with new information"
+)
+
+memory.add_temporal_layer(layer)
+
+# Now update the memory
+new_embeddings = np.array([0.15, 0.25, 0.35, 0.45], dtype=np.float32)
+memory.set_embeddings(new_embeddings)
+memory.set_attribute("title", "Updated knowledge")
+
+# Save the updated memory
+db.save(memory)
+```
+
+## Accessing Temporal Layers
+
+You can access the temporal layers of a memory node to examine its history.
+
+### Rust Example
+
+```rust
+// Load a memory
+let memory = db.load(memory_id)?;
+
+// Get all temporal layers
+let layers = memory.temporal_layers();
+println!("Memory has {} temporal layers", layers.len());
+
+// Examine each layer
+for (i, layer) in layers.iter().enumerate() {
+    println!("Layer {}:", i + 1);
+    println!("  Created at: {}", layer.timestamp());
+    println!("  Reason: {}", layer.reason());
+    
+    // Check if this layer has embeddings
+    if let Some(embeddings) = layer.embeddings() {
+        println!("  Embeddings: {:?}", embeddings);
+    }
+    
+    // Check if this layer has attributes
+    if let Some(attributes) = layer.attributes() {
+        println!("  Attributes:");
+        for (key, value) in attributes {
+            println!("    {}: {:?}", key, value);
+        }
+    }
+}
+```
+
+### Python Example
+
+```python
+# Load a memory
+memory = db.load(memory_id)
+
+# Get all temporal layers
+layers = memory.temporal_layers()
+print(f"Memory has {len(layers)} temporal layers")
+
+# Examine each layer
+for i, layer in enumerate(layers):
+    print(f"Layer {i + 1}:")
+    print(f"  Created at: {layer.timestamp()}")
+    print(f"  Reason: {layer.reason()}")
+    
+    # Check if this layer has embeddings
+    if layer.embeddings() is not None:
+        print(f"  Embeddings: {layer.embeddings()}")
+    
+    # Check if this layer has attributes
+    if layer.attributes() is not None:
+        print("  Attributes:")
+        for key, value in layer.attributes().items():
+            print(f"    {key}: {value}")
+```
+
+## Use Cases for Temporal Layers
+
+### Knowledge Evolution
+
+Temporal layers are ideal for tracking how an agent's knowledge evolves over time. For example, an agent might initially have a low-confidence understanding of a concept, which becomes more refined as it learns more.
+
+```rust
+// Initial knowledge
+let mut memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+memory.set_attribute(
+    "concept".to_string(), 
+    AttributeValue::String("Machine learning".to_string())
+);
+memory.set_attribute(
+    "understanding".to_string(),
+    AttributeValue::String("Basic".to_string())
+);
+memory.set_attribute(
+    "confidence".to_string(),
+    AttributeValue::Float(0.3)
+);
+
+let memory_id = db.save(&memory)?;
+
+// Later, after learning more
+let mut memory = db.load(memory_id)?;
+
+// Create a temporal layer
+let old_embeddings = memory.embeddings().to_vec();
+let mut old_attributes = HashMap::new();
+for (key, value) in memory.attributes() {
+    old_attributes.insert(key.clone(), value.clone());
+}
+
+let layer = TemporalLayer::new(
+    Some(old_embeddings),
+    Some(old_attributes),
+    "Learned more about machine learning".to_string()
+);
+
+memory.add_temporal_layer(layer);
+
+// Update the memory
+memory.set_embeddings(vec![0.15, 0.25, 0.35, 0.45]);
+memory.set_attribute(
+    "understanding".to_string(),
+    AttributeValue::String("Intermediate".to_string())
+);
+memory.set_attribute(
+    "confidence".to_string(),
+    AttributeValue::Float(0.6)
+);
+
+db.save(&memory)?;
+```
+
+### Belief Revision
+
+Temporal layers can track how an agent's beliefs change when new evidence contradicts previous assumptions.
+
+```python
+# Initial belief
+memory = engramdb.MemoryNode(np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32))
+memory.set_attribute("belief", "The Earth is flat")
+memory.set_attribute("confidence", 0.8)
+memory.set_attribute("evidence", ["Personal observation", "Internet articles"])
+
+memory_id = db.save(memory)
+
+# Later, after encountering contradictory evidence
+memory = db.load(memory_id)
+
+# Create a temporal layer
+layer = engramdb.TemporalLayer(
+    memory.embeddings(),
+    {
+        "belief": memory.get_attribute("belief"),
+        "confidence": memory.get_attribute("confidence"),
+        "evidence": memory.get_attribute("evidence")
+    },
+    "Encountered scientific evidence"
+)
+
+memory.add_temporal_layer(layer)
+
+# Update the belief
+memory.set_attribute("belief", "The Earth is spherical")
+memory.set_attribute("confidence", 0.95)
+memory.set_attribute("evidence", [
+    "Scientific papers", 
+    "Satellite images",
+    "Physics principles"
+])
+
+db.save(memory)
+```
+
+### Debugging and Auditing
+
+Temporal layers provide an audit trail that can help debug agent behavior by showing how and why memories changed over time.
+
+```rust
+// Load a memory with temporal layers
+let memory = db.load(memory_id)?;
+
+println!("Memory audit trail:");
+println!("Current state: {:?}", memory);
+
+// Print the history in reverse chronological order
+for (i, layer) in memory.temporal_layers().iter().rev().enumerate() {
+    println!("Change {}: at timestamp {}", i + 1, layer.timestamp());
+    println!("  Reason: {}", layer.reason());
+    
+    if let Some(attributes) = layer.attributes() {
+        if let Some(AttributeValue::Float(confidence)) = attributes.get("confidence") {
+            println!("  Previous confidence: {:.2}", confidence);
+        }
+    }
+}
+```
+
+## Best Practices
+
+### When to Create Temporal Layers
+
+Create temporal layers when:
+
+1. Making significant changes to a memory's content
+2. Updating beliefs based on new evidence
+3. Refining knowledge as more information becomes available
+4. Correcting errors in previous memories
+
+### What to Include in Temporal Layers
+
+For each temporal layer, consider including:
+
+1. The previous embeddings if they're changing
+2. The relevant attributes that are being modified
+3. A clear, descriptive reason for the change
+
+### Memory Efficiency
+
+Temporal layers can increase memory usage if overused. Consider these strategies:
+
+1. Only store the attributes that are changing, not all attributes
+2. For minor updates, consider updating the memory without creating a temporal layer
+3. Implement a pruning strategy for very old temporal layers if memory becomes an issue
+
+### Querying with Temporal Awareness
+
+When querying memories, consider their temporal aspects:
+
+```rust
+// Query for memories that were updated recently
+let time_filter = TemporalFilter::within_last(24 * 60 * 60); // Last 24 hours
+
+let results = db.query()
+    .with_vector(query_vector)
+    .with_temporal_filter(time_filter)
+    .execute()?;
+```
+
+## Conclusion
+
+Temporal layers are a powerful feature of EngramDB that enable tracking the evolution of memories over time. By effectively using temporal layers, you can build agent systems that maintain a rich history of knowledge evolution, belief revision, and learning processes.

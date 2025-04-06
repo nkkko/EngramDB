@@ -1,0 +1,442 @@
+# Rust Examples
+
+This document provides examples of how to use EngramDB in Rust applications.
+
+## Basic Usage
+
+This example demonstrates the basic operations of creating a database, adding memories, and searching for similar memories.
+
+```rust
+use engramdb::{Database, MemoryNode};
+use engramdb::core::AttributeValue;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create an in-memory database
+    let mut db = Database::in_memory();
+    println!("Created in-memory database");
+    
+    // Create a memory node
+    let mut memory1 = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+    memory1.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Meeting notes".to_string())
+    );
+    memory1.set_attribute(
+        "category".to_string(),
+        AttributeValue::String("work".to_string())
+    );
+    memory1.set_attribute(
+        "importance".to_string(),
+        AttributeValue::Float(0.8)
+    );
+    
+    // Save to database
+    let memory1_id = db.save(&memory1)?;
+    println!("Saved memory with ID: {}", memory1_id);
+    
+    // Create and save another memory
+    let mut memory2 = MemoryNode::new(vec![0.2, 0.3, 0.4, 0.5]);
+    memory2.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Project idea".to_string())
+    );
+    memory2.set_attribute(
+        "category".to_string(),
+        AttributeValue::String("work".to_string())
+    );
+    memory2.set_attribute(
+        "importance".to_string(),
+        AttributeValue::Float(0.9)
+    );
+    
+    let memory2_id = db.save(&memory2)?;
+    println!("Saved memory with ID: {}", memory2_id);
+    
+    // List all memories
+    let all_ids = db.list_all()?;
+    println!("Database contains {} memories", all_ids.len());
+    
+    // Load a memory
+    let loaded_memory = db.load(memory1_id)?;
+    println!("Loaded memory: {:?}", loaded_memory);
+    
+    // Search for similar memories
+    let query_vector = vec![0.15, 0.25, 0.35, 0.45];
+    let results = db.search_similar(&query_vector, 5, 0.0)?;
+    
+    println!("Search results:");
+    for (id, similarity) in results {
+        let memory = db.load(id)?;
+        if let Some(AttributeValue::String(title)) = memory.get_attribute("title") {
+            println!("  {} (similarity: {:.4})", title, similarity);
+        }
+    }
+    
+    // Delete a memory
+    db.delete(memory1_id)?;
+    println!("Deleted memory with ID: {}", memory1_id);
+    
+    // Verify it's gone
+    let remaining_ids = db.list_all()?;
+    println!("Database now contains {} memories", remaining_ids.len());
+    
+    Ok(())
+}
+```
+
+## Working with Connections
+
+This example demonstrates how to create and manage connections between memory nodes.
+
+```rust
+use engramdb::{Database, MemoryNode, RelationshipType};
+use engramdb::core::AttributeValue;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create an in-memory database
+    let mut db = Database::in_memory();
+    
+    // Create memory nodes
+    let mut memory1 = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+    memory1.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Meeting with team".to_string())
+    );
+    
+    let mut memory2 = MemoryNode::new(vec![0.2, 0.3, 0.4, 0.5]);
+    memory2.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Action items from meeting".to_string())
+    );
+    
+    let mut memory3 = MemoryNode::new(vec![0.3, 0.4, 0.5, 0.6]);
+    memory3.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Project timeline".to_string())
+    );
+    
+    // Save to database
+    let memory1_id = db.save(&memory1)?;
+    let memory2_id = db.save(&memory2)?;
+    let memory3_id = db.save(&memory3)?;
+    
+    // Create connections
+    db.add_connection(
+        memory1_id,
+        memory2_id,
+        RelationshipType::Causation,
+        0.9
+    )?;
+    
+    db.add_connection(
+        memory2_id,
+        memory3_id,
+        RelationshipType::Association,
+        0.7
+    )?;
+    
+    // Get connections for a memory
+    let connections = db.get_connections(memory1_id)?;
+    
+    println!("Connections for memory 'Meeting with team':");
+    for connection in connections {
+        let target = db.load(connection.target_id)?;
+        if let Some(AttributeValue::String(title)) = target.get_attribute("title") {
+            println!("  Connected to '{}' with relationship '{}' (strength: {:.2})",
+                title, connection.type_name, connection.strength);
+        }
+    }
+    
+    // Remove a connection
+    let removed = db.remove_connection(memory1_id, memory2_id)?;
+    println!("Connection removed: {}", removed);
+    
+    // Verify it's gone
+    let updated_connections = db.get_connections(memory1_id)?;
+    println!("Memory now has {} connections", updated_connections.len());
+    
+    Ok(())
+}
+```
+
+## Complex Queries
+
+This example demonstrates how to use the query builder to perform complex queries.
+
+```rust
+use engramdb::{Database, MemoryNode};
+use engramdb::core::AttributeValue;
+use engramdb::query::{AttributeFilter, TemporalFilter};
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create an in-memory database
+    let mut db = Database::in_memory();
+    
+    // Add some test memories
+    add_test_memories(&mut db)?;
+    
+    // Create filters
+    let category_filter = AttributeFilter::equals(
+        "category", 
+        AttributeValue::String("work".to_string())
+    );
+    
+    let importance_filter = AttributeFilter::greater_than(
+        "importance", 
+        AttributeValue::Float(0.7)
+    );
+    
+    // Create temporal filter for recent memories (last 24 hours)
+    let time_filter = TemporalFilter::within_last(24 * 60 * 60);
+    
+    // Execute the combined query
+    let query_vector = vec![0.1, 0.3, 0.5, 0.1]; // Similar to "project plan"
+    
+    let results = db.query()
+        .with_vector(query_vector)
+        .with_attribute_filter(category_filter)
+        .with_attribute_filter(importance_filter)
+        .with_temporal_filter(time_filter)
+        .with_limit(10)
+        .execute()?;
+    
+    println!("Found {} important work memories:", results.len());
+    for node in &results {
+        println!("  {}", 
+            node.get_attribute("title")
+                .and_then(|v| if let AttributeValue::String(s) = v { Some(s) } else { None })
+                .unwrap_or(&"Untitled".to_string())
+        );
+        
+        println!("    Importance: {}", 
+            node.get_attribute("importance")
+                .and_then(|v| if let AttributeValue::Float(f) = v { Some(f) } else { None })
+                .unwrap_or(&0.0)
+        );
+    }
+    
+    Ok(())
+}
+
+// Helper function to add test memories
+fn add_test_memories(db: &mut Database) -> Result<(), Box<dyn Error>> {
+    // Memory 1: Meeting notes
+    let mut memory1 = MemoryNode::new(vec![0.1, 0.3, 0.5, 0.1]);
+    memory1.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Meeting Notes".to_string())
+    );
+    memory1.set_attribute(
+        "category".to_string(),
+        AttributeValue::String("work".to_string())
+    );
+    memory1.set_attribute(
+        "importance".to_string(),
+        AttributeValue::Float(0.8)
+    );
+    db.save(&memory1)?;
+    
+    // Memory 2: Shopping list
+    let mut memory2 = MemoryNode::new(vec![0.8, 0.1, 0.0, 0.1]);
+    memory2.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Shopping List".to_string())
+    );
+    memory2.set_attribute(
+        "category".to_string(),
+        AttributeValue::String("personal".to_string())
+    );
+    memory2.set_attribute(
+        "importance".to_string(),
+        AttributeValue::Float(0.4)
+    );
+    db.save(&memory2)?;
+    
+    // Memory 3: Project idea
+    let mut memory3 = MemoryNode::new(vec![0.2, 0.4, 0.4, 0.0]);
+    memory3.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Project Idea".to_string())
+    );
+    memory3.set_attribute(
+        "category".to_string(),
+        AttributeValue::String("work".to_string())
+    );
+    memory3.set_attribute(
+        "importance".to_string(),
+        AttributeValue::Float(0.9)
+    );
+    db.save(&memory3)?;
+    
+    // Memory 4: Project plan
+    let mut memory4 = MemoryNode::new(vec![0.15, 0.35, 0.45, 0.05]);
+    memory4.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Project Plan".to_string())
+    );
+    memory4.set_attribute(
+        "category".to_string(),
+        AttributeValue::String("work".to_string())
+    );
+    memory4.set_attribute(
+        "importance".to_string(),
+        AttributeValue::Float(0.95)
+    );
+    db.save(&memory4)?;
+    
+    Ok(())
+}
+```
+
+## Persistent Storage
+
+This example demonstrates how to use file-based storage for persistence.
+
+```rust
+use engramdb::{Database, DatabaseConfig, MemoryNode};
+use engramdb::core::AttributeValue;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create a file-based database
+    let config = DatabaseConfig {
+        use_memory_storage: false,
+        storage_dir: Some("./my_database".to_string()),
+        cache_size: 100,
+    };
+    
+    let mut db = Database::new(config)?;
+    println!("Created file-based database");
+    
+    // Initialize to load existing memories
+    db.initialize()?;
+    
+    // Check if we have existing memories
+    let existing_ids = db.list_all()?;
+    println!("Found {} existing memories", existing_ids.len());
+    
+    if existing_ids.is_empty() {
+        // Add some test memories
+        let mut memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+        memory.set_attribute(
+            "title".to_string(), 
+            AttributeValue::String("Persistent memory".to_string())
+        );
+        
+        let memory_id = db.save(&memory)?;
+        println!("Created new memory with ID: {}", memory_id);
+    } else {
+        // Load and display existing memories
+        for id in existing_ids {
+            let memory = db.load(id)?;
+            if let Some(AttributeValue::String(title)) = memory.get_attribute("title") {
+                println!("Loaded memory: {} (ID: {})", title, id);
+            }
+        }
+    }
+    
+    println!("Database operations completed successfully");
+    
+    Ok(())
+}
+```
+
+## Working with Temporal Layers
+
+This example demonstrates how to use temporal layers to track memory evolution.
+
+```rust
+use engramdb::{Database, MemoryNode};
+use engramdb::core::{AttributeValue, TemporalLayer};
+use std::collections::HashMap;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create an in-memory database
+    let mut db = Database::in_memory();
+    
+    // Create initial memory
+    let mut memory = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+    memory.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Initial knowledge".to_string())
+    );
+    memory.set_attribute(
+        "confidence".to_string(),
+        AttributeValue::Float(0.6)
+    );
+    
+    // Save to database
+    let memory_id = db.save(&memory)?;
+    println!("Created initial memory with ID: {}", memory_id);
+    
+    // Later, we want to update the memory
+    // First, load it
+    let mut memory = db.load(memory_id)?;
+    
+    // Save the current state as a temporal layer
+    let old_embeddings = memory.embeddings().to_vec();
+    
+    let mut old_attributes = HashMap::new();
+    for (key, value) in memory.attributes() {
+        old_attributes.insert(key.clone(), value.clone());
+    }
+    
+    let layer = TemporalLayer::new(
+        Some(old_embeddings),
+        Some(old_attributes),
+        "Updated with new information".to_string()
+    );
+    
+    memory.add_temporal_layer(layer);
+    
+    // Now update the memory
+    memory.set_embeddings(vec![0.15, 0.25, 0.35, 0.45]);
+    memory.set_attribute(
+        "title".to_string(), 
+        AttributeValue::String("Updated knowledge".to_string())
+    );
+    memory.set_attribute(
+        "confidence".to_string(),
+        AttributeValue::Float(0.8)
+    );
+    
+    // Save the updated memory
+    db.save(&memory)?;
+    println!("Updated memory with a new temporal layer");
+    
+    // Load and examine the memory
+    let memory = db.load(memory_id)?;
+    
+    println!("Current state:");
+    if let Some(AttributeValue::String(title)) = memory.get_attribute("title") {
+        println!("  Title: {}", title);
+    }
+    if let Some(AttributeValue::Float(confidence)) = memory.get_attribute("confidence") {
+        println!("  Confidence: {:.2}", confidence);
+    }
+    
+    println!("Temporal layers: {}", memory.temporal_layers().len());
+    for (i, layer) in memory.temporal_layers().iter().enumerate() {
+        println!("Layer {}:", i + 1);
+        println!("  Timestamp: {}", layer.timestamp());
+        println!("  Reason: {}", layer.reason());
+        
+        if let Some(attributes) = layer.attributes() {
+            if let Some(AttributeValue::String(title)) = attributes.get("title") {
+                println!("  Title: {}", title);
+            }
+            if let Some(AttributeValue::Float(confidence)) = attributes.get("confidence") {
+                println!("  Confidence: {:.2}", confidence);
+            }
+        }
+    }
+    
+    Ok(())
+}
+```
+
+These examples demonstrate the core functionality of EngramDB in Rust applications. You can combine these patterns to build more complex applications that leverage the full power of the database.

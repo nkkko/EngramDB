@@ -1,0 +1,480 @@
+# Working with Connections
+
+Connections in EngramDB allow you to create graph-like relationships between memory nodes. This document explains how to work with connections effectively.
+
+## What are Connections?
+
+A connection represents a relationship between two memory nodes. Each connection has:
+
+- A target memory node ID (the node being connected to)
+- A relationship type (e.g., Association, Causation, Sequence)
+- A strength value (between 0.0 and 1.0)
+- A creation timestamp
+
+Connections enable EngramDB to model complex relationships between memories, forming a knowledge graph that can be traversed and queried.
+
+## Relationship Types
+
+EngramDB provides several built-in relationship types:
+
+- **Association**: A general relationship between related concepts
+- **Causation**: A cause-effect relationship
+- **Sequence**: A temporal sequence or ordering
+- **Hierarchy**: A parent-child or category-subcategory relationship
+- **Similarity**: Indicates that two memories are similar
+- **Opposition**: Indicates that two memories are opposites or contradictory
+- **Custom**: User-defined relationship types
+
+## Creating Connections
+
+You can create connections between memory nodes in two ways:
+
+1. Directly on a memory node
+2. Through the database API
+
+### Using the Memory Node API
+
+#### Rust Example
+
+```rust
+use engramdb::{MemoryNode, RelationshipType};
+use engramdb::core::Connection;
+use uuid::Uuid;
+
+// Create two memory nodes
+let mut memory1 = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+let memory2 = MemoryNode::new(vec![0.2, 0.3, 0.4, 0.5]);
+
+// Save them to get their IDs
+let memory1_id = db.save(&memory1)?;
+let memory2_id = db.save(&memory2)?;
+
+// Create a connection from memory1 to memory2
+let connection = Connection::new(
+    memory2_id,
+    RelationshipType::Association,
+    0.75
+);
+
+// Load memory1 again to update it
+let mut memory1 = db.load(memory1_id)?;
+memory1.add_connection(connection);
+
+// Save the updated memory1
+db.save(&memory1)?;
+```
+
+#### Python Example
+
+```python
+import engramdb
+import numpy as np
+
+# Create two memory nodes
+memory1 = engramdb.MemoryNode(np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32))
+memory2 = engramdb.MemoryNode(np.array([0.2, 0.3, 0.4, 0.5], dtype=np.float32))
+
+# Save them to get their IDs
+memory1_id = db.save(memory1)
+memory2_id = db.save(memory2)
+
+# Create a connection from memory1 to memory2
+connection = engramdb.Connection(
+    memory2_id,
+    engramdb.RelationshipType.ASSOCIATION,
+    0.75
+)
+
+# Load memory1 again to update it
+memory1 = db.load(memory1_id)
+memory1.add_connection(connection)
+
+# Save the updated memory1
+db.save(memory1)
+```
+
+### Using the Database API
+
+#### Rust Example
+
+```rust
+use engramdb::{Database, RelationshipType};
+
+// Assuming memory1_id and memory2_id are valid UUIDs of existing memories
+db.add_connection(
+    memory1_id,
+    memory2_id,
+    RelationshipType::Causation,
+    0.9
+)?;
+```
+
+#### Python Example
+
+```python
+# Assuming memory1_id and memory2_id are valid UUIDs of existing memories
+db.add_connection(
+    memory1_id,
+    memory2_id,
+    engramdb.RelationshipType.CAUSATION,
+    0.9
+)
+```
+
+## Retrieving Connections
+
+You can retrieve the connections of a memory node in two ways:
+
+1. Directly from a memory node
+2. Through the database API
+
+### Using the Memory Node API
+
+#### Rust Example
+
+```rust
+// Load a memory node
+let memory = db.load(memory_id)?;
+
+// Get all connections
+let connections = memory.connections();
+println!("Memory has {} connections", connections.len());
+
+// Examine each connection
+for connection in connections {
+    println!("Connected to: {}", connection.target_id());
+    println!("Relationship type: {:?}", connection.relationship_type());
+    println!("Strength: {:.2}", connection.strength());
+    println!("Created at: {}", connection.creation_timestamp());
+}
+```
+
+#### Python Example
+
+```python
+# Load a memory node
+memory = db.load(memory_id)
+
+# Get all connections
+connections = memory.connections()
+print(f"Memory has {len(connections)} connections")
+
+# Examine each connection
+for connection in connections:
+    print(f"Connected to: {connection.target_id()}")
+    print(f"Relationship type: {connection.relationship_type()}")
+    print(f"Strength: {connection.strength():.2f}")
+    print(f"Created at: {connection.creation_timestamp()}")
+```
+
+### Using the Database API
+
+#### Rust Example
+
+```rust
+// Get connections for a memory
+let connections = db.get_connections(memory_id)?;
+
+println!("Connections for memory {}:", memory_id);
+for connection in connections {
+    println!("Connected to: {}", connection.target_id);
+    println!("Relationship type: {}", connection.type_name);
+    println!("Strength: {:.2}", connection.strength);
+    
+    // Load the target memory to get more information
+    let target = db.load(connection.target_id)?;
+    // ... work with the target memory
+}
+```
+
+#### Python Example
+
+```python
+# Get connections for a memory
+connections = db.get_connections(memory_id)
+
+print(f"Connections for memory {memory_id}:")
+for connection in connections:
+    print(f"Connected to: {connection.target_id}")
+    print(f"Relationship type: {connection.type_name}")
+    print(f"Strength: {connection.strength:.2f}")
+    
+    # Load the target memory to get more information
+    target = db.load(connection.target_id)
+    # ... work with the target memory
+```
+
+## Removing Connections
+
+You can remove connections in two ways:
+
+1. Directly from a memory node
+2. Through the database API
+
+### Using the Memory Node API
+
+#### Rust Example
+
+```rust
+// Load a memory node
+let mut memory = db.load(memory_id)?;
+
+// Remove a connection to a specific target
+let removed = memory.remove_connection(target_id);
+if removed {
+    println!("Connection removed");
+    
+    // Save the updated memory
+    db.save(&memory)?;
+} else {
+    println!("No connection found to that target");
+}
+```
+
+#### Python Example
+
+```python
+# Load a memory node
+memory = db.load(memory_id)
+
+# Remove a connection to a specific target
+removed = memory.remove_connection(target_id)
+if removed:
+    print("Connection removed")
+    
+    # Save the updated memory
+    db.save(memory)
+else:
+    print("No connection found to that target")
+```
+
+### Using the Database API
+
+#### Rust Example
+
+```rust
+// Remove a connection between two memories
+let removed = db.remove_connection(source_id, target_id)?;
+if removed {
+    println!("Connection removed");
+} else {
+    println!("No connection found between those memories");
+}
+```
+
+#### Python Example
+
+```python
+# Remove a connection between two memories
+removed = db.remove_connection(source_id, target_id)
+if removed:
+    print("Connection removed")
+else:
+    print("No connection found between those memories")
+```
+
+## Use Cases for Connections
+
+### Knowledge Graphs
+
+Connections can be used to build knowledge graphs that represent relationships between concepts.
+
+```rust
+// Create memory nodes for concepts
+let mut apple = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+apple.set_attribute("concept".to_string(), AttributeValue::String("Apple".to_string()));
+
+let mut fruit = MemoryNode::new(vec![0.2, 0.3, 0.4, 0.5]);
+fruit.set_attribute("concept".to_string(), AttributeValue::String("Fruit".to_string()));
+
+let mut red = MemoryNode::new(vec![0.3, 0.4, 0.5, 0.6]);
+red.set_attribute("concept".to_string(), AttributeValue::String("Red".to_string()));
+
+// Save them
+let apple_id = db.save(&apple)?;
+let fruit_id = db.save(&fruit)?;
+let red_id = db.save(&red)?;
+
+// Create connections
+db.add_connection(apple_id, fruit_id, RelationshipType::Hierarchy, 0.9)?; // Apple is a fruit
+db.add_connection(apple_id, red_id, RelationshipType::Association, 0.7)?; // Apples are associated with red
+```
+
+### Causal Chains
+
+Connections can represent cause-effect relationships, forming causal chains.
+
+```python
+# Create memory nodes for events
+event1 = engramdb.MemoryNode(np.random.rand(4).astype(np.float32))
+event1.set_attribute("event", "Rain")
+
+event2 = engramdb.MemoryNode(np.random.rand(4).astype(np.float32))
+event2.set_attribute("event", "Wet ground")
+
+event3 = engramdb.MemoryNode(np.random.rand(4).astype(np.float32))
+event3.set_attribute("event", "Slippery surface")
+
+event4 = engramdb.MemoryNode(np.random.rand(4).astype(np.float32))
+event4.set_attribute("event", "Fall")
+
+# Save them
+event1_id = db.save(event1)
+event2_id = db.save(event2)
+event3_id = db.save(event3)
+event4_id = db.save(event4)
+
+# Create a causal chain
+db.add_connection(event1_id, event2_id, engramdb.RelationshipType.CAUSATION, 0.9)
+db.add_connection(event2_id, event3_id, engramdb.RelationshipType.CAUSATION, 0.8)
+db.add_connection(event3_id, event4_id, engramdb.RelationshipType.CAUSATION, 0.7)
+```
+
+### Temporal Sequences
+
+Connections can represent sequences of events or steps.
+
+```rust
+// Create memory nodes for steps in a process
+let mut step1 = MemoryNode::new(vec![0.1, 0.2, 0.3, 0.4]);
+step1.set_attribute("step".to_string(), AttributeValue::String("Prepare ingredients".to_string()));
+
+let mut step2 = MemoryNode::new(vec![0.2, 0.3, 0.4, 0.5]);
+step2.set_attribute("step".to_string(), AttributeValue::String("Mix batter".to_string()));
+
+let mut step3 = MemoryNode::new(vec![0.3, 0.4, 0.5, 0.6]);
+step3.set_attribute("step".to_string(), AttributeValue::String("Bake in oven".to_string()));
+
+let mut step4 = MemoryNode::new(vec![0.4, 0.5, 0.6, 0.7]);
+step4.set_attribute("step".to_string(), AttributeValue::String("Cool and serve".to_string()));
+
+// Save them
+let step1_id = db.save(&step1)?;
+let step2_id = db.save(&step2)?;
+let step3_id = db.save(&step3)?;
+let step4_id = db.save(&step4)?;
+
+// Create a sequence
+db.add_connection(step1_id, step2_id, RelationshipType::Sequence, 1.0)?;
+db.add_connection(step2_id, step3_id, RelationshipType::Sequence, 1.0)?;
+db.add_connection(step3_id, step4_id, RelationshipType::Sequence, 1.0)?;
+```
+
+## Graph Traversal
+
+You can traverse the graph by following connections from one memory to another.
+
+### Rust Example
+
+```rust
+// Start with a memory node
+let start_id = some_memory_id;
+let mut visited = std::collections::HashSet::new();
+let mut queue = std::collections::VecDeque::new();
+queue.push_back(start_id);
+
+// Breadth-first traversal
+while let Some(current_id) = queue.pop_front() {
+    if visited.contains(&current_id) {
+        continue;
+    }
+    
+    visited.insert(current_id);
+    
+    // Process the current node
+    let memory = db.load(current_id)?;
+    println!("Visiting memory: {}", current_id);
+    
+    // Get all connections
+    let connections = db.get_connections(current_id)?;
+    
+    // Add connected nodes to the queue
+    for connection in connections {
+        if !visited.contains(&connection.target_id) {
+            queue.push_back(connection.target_id);
+        }
+    }
+}
+
+println!("Visited {} memories", visited.len());
+```
+
+### Python Example
+
+```python
+import collections
+
+# Start with a memory node
+start_id = some_memory_id
+visited = set()
+queue = collections.deque([start_id])
+
+# Breadth-first traversal
+while queue:
+    current_id = queue.popleft()
+    if current_id in visited:
+        continue
+    
+    visited.add(current_id)
+    
+    # Process the current node
+    memory = db.load(current_id)
+    print(f"Visiting memory: {current_id}")
+    
+    # Get all connections
+    connections = db.get_connections(current_id)
+    
+    # Add connected nodes to the queue
+    for connection in connections:
+        if connection.target_id not in visited:
+            queue.append(connection.target_id)
+
+print(f"Visited {len(visited)} memories")
+```
+
+## Best Practices
+
+### When to Use Connections
+
+Use connections when:
+
+1. You need to represent explicit relationships between memories
+2. You want to build a knowledge graph
+3. You need to model causal chains or sequences
+4. You want to represent hierarchical relationships
+
+### Connection Strength
+
+The strength value (0.0 to 1.0) can be used to represent:
+
+1. The confidence in the relationship
+2. The importance of the relationship
+3. The strength of association between concepts
+
+Use consistent semantics for strength values across your application.
+
+### Bidirectional Relationships
+
+If you need bidirectional relationships, you must create two connections:
+
+```rust
+// Create a bidirectional relationship
+db.add_connection(node1_id, node2_id, RelationshipType::Association, 0.8)?;
+db.add_connection(node2_id, node1_id, RelationshipType::Association, 0.8)?;
+```
+
+### Custom Relationship Types
+
+You can extend the built-in relationship types with custom ones:
+
+```rust
+// Define a custom relationship type
+let custom_type = RelationshipType::Custom("Ingredient".to_string());
+
+// Use it in a connection
+db.add_connection(recipe_id, ingredient_id, custom_type, 1.0)?;
+```
+
+## Conclusion
+
+Connections are a powerful feature of EngramDB that enable modeling complex relationships between memories. By effectively using connections, you can build rich knowledge graphs, causal chains, and temporal sequences that enhance the capabilities of your agent systems.

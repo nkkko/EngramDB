@@ -1,0 +1,23 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Model cache files
+model_cache/
+
+# EngramDB data files
+engramdb_data/
+
+# Virtual environment
+venv_app/
+
+# Environment variables
+.env
+
+# IDE files
+.idea/
+.vscode/
+
+# Logs
+*.log

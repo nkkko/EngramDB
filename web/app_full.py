@@ -97,6 +97,9 @@ class MockMemoryNode:
 class MockDatabase:
     def __init__(self):
         self.memories = {}
+        # Store graph relationships as a dictionary:
+        # {source_id: {target_id: {"type": relationship_type, "strength": strength}}}
+        self.relationships = {}
     
     @classmethod
     def file_based(cls, path):
@@ -105,6 +108,11 @@ class MockDatabase:
     @classmethod
     def in_memory(cls):
         return cls()
+        
+    def clear_all(self):
+        """Delete all memories and relationships."""
+        self.memories = {}
+        self.relationships = {}
     
     def save(self, memory):
         self.memories[memory.id] = memory
@@ -117,23 +125,120 @@ class MockDatabase:
     
     def delete(self, memory_id):
         if memory_id in self.memories:
+            # Remove this memory
             del self.memories[memory_id]
+            
+            # Remove relationships where this memory is the source
+            if memory_id in self.relationships:
+                del self.relationships[memory_id]
+            
+            # Remove relationships where this memory is the target
+            for source_id in self.relationships:
+                if memory_id in self.relationships[source_id]:
+                    del self.relationships[source_id][memory_id]
     
     def list_all(self):
         return list(self.memories.keys())
     
-    def search_similar(self, query_vector, limit=10, threshold=0.0):
-        # Simple mock for vector search - just return random similarities
+    def connect(self, source_id, target_id, relationship_type=None, strength=1.0):
+        """Create a connection between two memories."""
+        # Verify that both memories exist
+        if source_id not in self.memories:
+            raise ValueError(f"Source memory ID {source_id} not found")
+        if target_id not in self.memories:
+            raise ValueError(f"Target memory ID {target_id} not found")
+        
+        # Initialize the source dictionary if it doesn't exist
+        if source_id not in self.relationships:
+            self.relationships[source_id] = {}
+        
+        # Store the relationship
+        self.relationships[source_id][target_id] = {
+            "type": relationship_type,
+            "strength": strength
+        }
+        
+        return True
+    
+    def disconnect(self, source_id, target_id):
+        """Remove a connection between two memories."""
+        if source_id in self.relationships and target_id in self.relationships[source_id]:
+            del self.relationships[source_id][target_id]
+            return True
+        return False
+    
+    def get_connections(self, memory_id, relationship_type=None):
+        """Get all connections from a specific memory."""
+        connections = []
+        
+        if memory_id in self.relationships:
+            for target_id, rel_info in self.relationships[memory_id].items():
+                if relationship_type is None or rel_info["type"] == relationship_type:
+                    connections.append({
+                        "target_id": target_id,
+                        "type": rel_info["type"],
+                        "strength": rel_info["strength"]
+                    })
+        
+        return connections
+    
+    def get_connected_to(self, memory_id, relationship_type=None):
+        """Get all memories that connect to this memory."""
+        connections = []
+        
+        for source_id, targets in self.relationships.items():
+            if memory_id in targets:
+                rel_info = targets[memory_id]
+                if relationship_type is None or rel_info["type"] == relationship_type:
+                    connections.append({
+                        "source_id": source_id,
+                        "type": rel_info["type"],
+                        "strength": rel_info["strength"]
+                    })
+        
+        return connections
+    
+    def search_similar(self, query_vector, limit=10, threshold=0.0, connected_to=None, relationship_type=None):
+        """Search for similar memories, optionally filtering by graph relationships."""
+        # First, get all memories similar to the query vector
         import random
+        from scipy.spatial.distance import cosine
+        
         results = []
         for memory_id, memory in self.memories.items():
             # Skip if embedding dimensions don't match
             if len(memory._embeddings) != len(query_vector):
                 continue
             
-            # Calculate a random similarity score
-            similarity = random.uniform(threshold, 1.0)
-            results.append((memory_id, similarity))
+            # Calculate similarity score
+            try:
+                # Try to use cosine similarity if vectors have same dimensions
+                similarity = 1 - cosine(memory._embeddings, query_vector)
+            except:
+                # Fallback to random similarity
+                similarity = random.uniform(threshold, 1.0)
+            
+            # Only include if above threshold
+            if similarity >= threshold:
+                results.append((memory_id, similarity))
+        
+        # Filter by graph relationship if required
+        if connected_to is not None:
+            filtered_results = []
+            
+            # Get all memories connected to the specified memory
+            connected_memories = set()
+            if connected_to in self.relationships:
+                for target_id, rel_info in self.relationships[connected_to].items():
+                    if relationship_type is None or rel_info["type"] == relationship_type:
+                        connected_memories.add(target_id)
+            
+            # Filter the results to include only connected memories
+            for memory_id, similarity in results:
+                if memory_id in connected_memories:
+                    filtered_results.append((memory_id, similarity))
+            
+            results = filtered_results
         
         # Sort by similarity (highest first) and return top limit results
         results.sort(key=lambda x: x[1], reverse=True)
@@ -157,6 +262,7 @@ except ImportError as e:
         PREDECESSOR = "predecessor"
         SUCCESSOR = "successor"
         REFERENCE = "reference"
+        ASSOCIATION = "association"
 
 app = Flask(__name__)
 app.secret_key = 'engramdb-secret-key'  # For flash messages
@@ -459,6 +565,555 @@ def search():
 @app.errorhandler(404)
 def page_not_found(e):
     flash('Page not found', 'error')
+    return redirect(url_for('index'))
+
+# Routes for graph/connection management
+@app.route('/memory/<memory_id>/connections')
+def view_connections(memory_id):
+    """View all connections for a memory."""
+    try:
+        memory = db.load(memory_id)
+        
+        # Get outgoing connections (where this memory is the source)
+        outgoing_connections = []
+        try:
+            # Get outgoing connections using the new implementation
+            connections = db.get_connections(memory_id)
+            for conn in connections:
+                target = db.load(conn["target_id"])
+                outgoing_connections.append({
+                    'id': conn["target_id"],
+                    'title': target.get_attribute('title') or 'Untitled',
+                    'type': conn["type"].lower(),  # Lowercase for consistency
+                    'strength': conn["strength"],
+                    'direction': 'outgoing'
+                })
+        except Exception as e:
+            logger.error(f"Error getting outgoing connections: {e}")
+            # If there was an error with the new implementation, try the mock
+            if hasattr(db, 'relationships') and memory_id in db.relationships:
+                for target_id, rel_info in db.relationships[memory_id].items():
+                    try:
+                        target = db.load(target_id)
+                        outgoing_connections.append({
+                            'id': target_id,
+                            'title': target.get_attribute('title') or 'Untitled',
+                            'type': rel_info["type"].lower(),
+                            'strength': rel_info["strength"],
+                            'direction': 'outgoing'
+                        })
+                    except Exception as err:
+                        logger.error(f"Error processing outgoing connection: {err}")
+        
+        # Get incoming connections (where this memory is the target)
+        incoming_connections = []
+        try:
+            # Get incoming connections using the new implementation
+            connections = db.get_connected_to(memory_id)
+            for conn in connections:
+                source = db.load(conn["source_id"])
+                incoming_connections.append({
+                    'id': conn["source_id"],
+                    'title': source.get_attribute('title') or 'Untitled',
+                    'type': conn["type"].lower(),
+                    'strength': conn["strength"],
+                    'direction': 'incoming'
+                })
+        except Exception as e:
+            logger.error(f"Error getting incoming connections: {e}")
+            # If there was an error with the new implementation, try using relationships
+            if hasattr(db, 'relationships'):
+                for source_id, targets in db.relationships.items():
+                    if memory_id in targets:
+                        try:
+                            source = db.load(source_id)
+                            rel_info = targets[memory_id]
+                            incoming_connections.append({
+                                'id': source_id,
+                                'title': source.get_attribute('title') or 'Untitled',
+                                'type': rel_info["type"].lower(),
+                                'strength': rel_info["strength"],
+                                'direction': 'incoming'
+                            })
+                        except Exception as err:
+                            logger.error(f"Error processing incoming connection: {err}")
+        
+        # Get data for the current memory
+        memory_data = {
+            'id': memory_id,
+            'title': memory.get_attribute('title') or 'Untitled',
+            'category': memory.get_attribute('category') or 'Uncategorized',
+            'importance': memory.get_attribute('importance') or 0.0,
+        }
+        
+        # Get all other memories for the connection form
+        all_memories = []
+        for other_id in db.list_all():
+            if other_id != memory_id:  # Exclude the current memory
+                other = db.load(other_id)
+                all_memories.append({
+                    'id': other_id,
+                    'title': other.get_attribute('title') or 'Untitled'
+                })
+        
+        # Get relationship types
+        try:
+            # Check if we're using the actual Rust RelationshipType
+            # or our mock Python implementation
+            if hasattr(RelationshipType, 'Association'):
+                # Rust RelationshipType enum
+                relationship_types = [
+                    {"id": "Association", "name": "Association"},
+                    {"id": "Causation", "name": "Causation"},
+                    {"id": "Sequence", "name": "Sequence"},
+                    {"id": "PartOf", "name": "Part Of"},
+                    {"id": "Contains", "name": "Contains"}
+                ]
+            else:
+                # Mock RelationshipType class
+                relationship_types = [
+                    {"id": RelationshipType.ASSOCIATION, "name": "Association"},
+                    {"id": RelationshipType.REFERENCE, "name": "Reference"},
+                    {"id": RelationshipType.PREDECESSOR, "name": "Predecessor"},
+                    {"id": RelationshipType.SUCCESSOR, "name": "Successor"}
+                ]
+        except Exception as e:
+            logger.error(f"Error determining relationship types: {e}")
+            # Fallback to basic relationships
+            relationship_types = [
+                {"id": "Association", "name": "Association"},
+                {"id": "Reference", "name": "Reference"},
+                {"id": "Predecessor", "name": "Predecessor"},
+                {"id": "Successor", "name": "Successor"}
+            ]
+                
+        return render_template('connections.html', 
+                              memory=memory_data,
+                              outgoing_connections=outgoing_connections,
+                              incoming_connections=incoming_connections,
+                              all_memories=all_memories,
+                              relationship_types=relationship_types)
+    except Exception as e:
+        flash(f"Error loading connections: {str(e)}", 'error')
+        return redirect(url_for('index'))
+
+@app.route('/memory/<source_id>/connect', methods=['POST'])
+def create_connection(source_id):
+    """Create a new connection between memories."""
+    try:
+        target_id = request.form.get('target_id')
+        relationship_type = request.form.get('relationship_type')
+        strength = float(request.form.get('strength', 1.0))
+        
+        if not target_id:
+            flash("Target memory is required", 'error')
+            return redirect(url_for('view_connections', memory_id=source_id))
+        
+        # Check if we're using the real Database or mock
+        if hasattr(db, 'connect'):
+            # Using the mock database which has the connect method
+            # Create the connection
+            db.connect(source_id, target_id, relationship_type, strength)
+            
+            # If relationship is bidirectional, create reverse connection
+            bidirectional = request.form.get('bidirectional') == 'true'
+            if bidirectional:
+                # Determine reverse relationship type
+                reverse_type = relationship_type
+                
+                # Handle reverse relationships
+                try:
+                    # Check if we're using the mock implementation
+                    if not hasattr(RelationshipType, 'Association'):
+                        # Mock implementation with PREDECESSOR/SUCCESSOR
+                        if relationship_type == RelationshipType.PREDECESSOR:
+                            reverse_type = RelationshipType.SUCCESSOR
+                        elif relationship_type == RelationshipType.SUCCESSOR:
+                            reverse_type = RelationshipType.PREDECESSOR
+                except Exception as e:
+                    logger.warning(f"Error determining reverse relationship: {e}")
+                
+                db.connect(target_id, source_id, reverse_type, strength)
+        else:
+            # Real Database implementation
+            logger.warning("Connection creation not yet implemented for real Database")
+            flash("Connection creation not yet implemented in this version", "warning")
+        
+        flash("Connection created successfully", 'success')
+    except Exception as e:
+        flash(f"Error creating connection: {str(e)}", 'error')
+    
+    return redirect(url_for('view_connections', memory_id=source_id))
+
+@app.route('/memory/<source_id>/disconnect/<target_id>', methods=['POST'])
+def remove_connection(source_id, target_id):
+    """Remove a connection between memories."""
+    try:
+        # Check if we're using the mock Database or real
+        if hasattr(db, 'disconnect'):
+            # Using the mock database
+            db.disconnect(source_id, target_id)
+            flash("Connection removed successfully", 'success')
+        else:
+            # Real Database implementation
+            logger.warning("Connection removal not yet implemented for real Database")
+            flash("Connection removal not yet implemented in this version", "warning")
+    except Exception as e:
+        flash(f"Error removing connection: {str(e)}", 'error')
+    
+    return redirect(url_for('view_connections', memory_id=source_id))
+
+@app.route('/memory/graph')
+def memory_graph():
+    """View the entire memory graph."""
+    try:
+        # Get all memories for nodes
+        nodes = []
+        all_memory_ids = db.list_all()
+        for memory_id in all_memory_ids:
+            memory = db.load(memory_id)
+            nodes.append({
+                'id': memory_id,
+                'title': memory.get_attribute('title') or 'Untitled',
+                'category': memory.get_attribute('category') or 'Uncategorized',
+                'importance': memory.get_attribute('importance') or 0.0,
+            })
+        
+        # Get all connections for edges
+        edges = []
+        
+        # For each memory, get its outgoing connections
+        for memory_id in all_memory_ids:
+            try:
+                # Try using the new get_connections method
+                connections = db.get_connections(memory_id)
+                
+                # Process each connection to create an edge
+                for conn in connections:
+                    edges.append({
+                        'source': memory_id,
+                        'target': conn["target_id"],
+                        'type': conn["type"].lower(),  # Lowercase for consistency in visualization
+                        'strength': conn["strength"]
+                    })
+            except Exception as e:
+                logger.warning(f"Couldn't get connections for memory {memory_id}: {e}")
+                # If any error occurs, try falling back to mock implementation
+                if hasattr(db, 'relationships') and memory_id in db.relationships:
+                    for target_id, rel_info in db.relationships[memory_id].items():
+                        edges.append({
+                            'source': memory_id,
+                            'target': target_id,
+                            'type': rel_info["type"].lower(),
+                            'strength': rel_info["strength"]
+                        })
+        
+        # If no edges were found, show a notification
+        if not edges:
+            flash("No connections found between memories. Create connections to see the graph.", "info")
+            
+        return render_template('graph.html', nodes=nodes, edges=edges)
+    except Exception as e:
+        flash(f"Error loading memory graph: {str(e)}", 'error')
+        return redirect(url_for('index'))
+
+@app.route('/search/graph', methods=['GET', 'POST'])
+def graph_search():
+    """Search for memories with graph relationship constraints."""
+    results = []
+    all_memories = []
+    
+    # Get all memories for dropdown
+    try:
+        for memory_id in db.list_all():
+            memory = db.load(memory_id)
+            all_memories.append({
+                'id': memory_id,
+                'title': memory.get_attribute('title') or 'Untitled'
+            })
+    except Exception:
+        pass
+        
+    if request.method == 'POST':
+        try:
+            # Get search parameters
+            query_text = request.form.get('query_text', '')
+            connected_to = request.form.get('connected_to', '')
+            relationship_type = request.form.get('relationship_type', '')
+            
+            # Set relationship_type to None if "Any" was selected
+            if relationship_type == "any":
+                relationship_type = None
+                
+            # Get query vector from text or manual input
+            use_text_embeddings = request.form.get('use_text_embeddings') == 'true'
+            if use_text_embeddings and query_text and EMBEDDING_MODEL_AVAILABLE:
+                logger.info(f"Generating embeddings from query text: '{query_text}'")
+                query_vector = generate_embedding_from_query(query_text)
+                
+                if query_vector is None:
+                    flash("Could not generate embeddings from query text. Using manual vector instead.", "warning")
+                    embedding_text = request.form.get('query_vector', '')
+                    try:
+                        query_vector = json.loads(embedding_text)
+                    except json.JSONDecodeError:
+                        query_vector = [float(x) for x in embedding_text.split()]
+                else:
+                    # Convert numpy array to list
+                    query_vector = query_vector.tolist()
+            else:
+                # Use the manual vector input
+                embedding_text = request.form.get('query_vector', '')
+                try:
+                    query_vector = json.loads(embedding_text)
+                except json.JSONDecodeError:
+                    query_vector = [float(x) for x in embedding_text.split()]
+            
+            threshold = float(request.form.get('threshold', 0.0))
+            limit = int(request.form.get('limit', 10))
+            
+            # Check if the real Database supports graph constraints in search
+            supports_graph_constraints = hasattr(db, 'relationships')
+            
+            # Perform search with graph constraints
+            if connected_to and supports_graph_constraints:
+                # Mock implementation supports graph constraints
+                search_results = db.search_similar(
+                    query_vector, 
+                    limit=limit, 
+                    threshold=threshold,
+                    connected_to=connected_to,
+                    relationship_type=relationship_type
+                )
+            else:
+                # Real Database or search without constraints
+                if connected_to and not supports_graph_constraints:
+                    flash("Graph constraint search not available in this version", "warning")
+                    
+                search_results = db.search_similar(
+                    query_vector, 
+                    limit=limit, 
+                    threshold=threshold
+                )
+            
+            # Load memory details
+            for memory_id, similarity in search_results:
+                memory = db.load(memory_id)
+                memory_data = {
+                    'id': memory_id,
+                    'title': memory.get_attribute('title') or 'Untitled',
+                    'category': memory.get_attribute('category') or 'Uncategorized',
+                    'importance': memory.get_attribute('importance') or 0.0,
+                    'content': memory.get_attribute('content') or '',
+                    'similarity': similarity,
+                }
+                results.append(memory_data)
+                
+        except Exception as e:
+            flash(f"Error during graph search: {str(e)}", 'error')
+    
+    # Get relationship types for dropdown
+    try:
+        # Check if we're using the actual Rust RelationshipType
+        # or our mock Python implementation
+        if hasattr(RelationshipType, 'Association'):
+            # Rust RelationshipType enum
+            relationship_types = [
+                {"id": "any", "name": "Any Relationship"},
+                {"id": "Association", "name": "Association"},
+                {"id": "Causation", "name": "Causation"},
+                {"id": "Sequence", "name": "Sequence"},
+                {"id": "PartOf", "name": "Part Of"},
+                {"id": "Contains", "name": "Contains"}
+            ]
+        else:
+            # Mock RelationshipType class
+            relationship_types = [
+                {"id": "any", "name": "Any Relationship"},
+                {"id": RelationshipType.ASSOCIATION, "name": "Association"},
+                {"id": RelationshipType.REFERENCE, "name": "Reference"},
+                {"id": RelationshipType.PREDECESSOR, "name": "Predecessor"},
+                {"id": RelationshipType.SUCCESSOR, "name": "Successor"}
+            ]
+    except Exception as e:
+        logger.error(f"Error determining relationship types: {e}")
+        # Fallback to basic relationships
+        relationship_types = [
+            {"id": "any", "name": "Any Relationship"},
+            {"id": "Association", "name": "Association"},
+            {"id": "Reference", "name": "Reference"},
+            {"id": "Predecessor", "name": "Predecessor"},
+            {"id": "Successor", "name": "Successor"}
+        ]
+    
+    return render_template(
+        'graph_search.html', 
+        results=results, 
+        all_memories=all_memories, 
+        relationship_types=relationship_types,
+        embedding_model_available=EMBEDDING_MODEL_AVAILABLE
+    )
+
+@app.errorhandler(404)
+def page_not_found(e):
+    flash('Page not found', 'error')
+    return redirect(url_for('index'))
+
+@app.route('/delete_all_memories', methods=['POST'])
+def delete_all_memories():
+    """Delete all memories and connections."""
+    global db
+    try:
+        # First, try the standard approach
+        memory_ids = db.list_all()
+        success_count = 0
+        error_count = 0
+        
+        for memory_id in memory_ids:
+            try:
+                db.delete(memory_id)
+                success_count += 1
+            except Exception as e:
+                logger.error(f"Failed to delete memory {memory_id}: {e}")
+                error_count += 1
+        
+        # If we encountered errors or if there are still files, do a hard reset
+        if error_count > 0:
+            logger.info("Performing manual database reset")
+            
+            # Create a new database instance
+            try:
+                # First, let's try to manually delete the files if they exist
+                import shutil
+                import os
+                
+                # Delete files in the database directory
+                if os.path.exists(DB_PATH):
+                    # Remove all subdirectories and files
+                    for root, dirs, files in os.walk(DB_PATH):
+                        for f in files:
+                            try:
+                                os.unlink(os.path.join(root, f))
+                                logger.info(f"Deleted file: {os.path.join(root, f)}")
+                            except Exception as e:
+                                logger.error(f"Failed to delete file {f}: {e}")
+                    
+                    # Recreate the directory structure
+                    os.makedirs(DB_PATH, exist_ok=True)
+                
+                # Reinitialize the database
+                db = Database.file_based(DB_PATH)
+                logger.info("Database reinitialized successfully")
+                flash("Database has been completely reset", 'success')
+            except Exception as e:
+                logger.error(f"Error during manual database reset: {e}")
+                flash(f"Error resetting database: {str(e)}", 'error')
+        else:
+            flash(f"All {success_count} memories have been deleted", 'success')
+    except Exception as e:
+        flash(f"Error deleting memories: {str(e)}", 'error')
+    
+    return redirect(url_for('index'))
+
+@app.route('/load_example_dataset', methods=['POST'])
+def load_example_dataset():
+    """Load example dataset with predefined memories and connections."""
+    try:
+        # First, clear any existing memories
+        try:
+            db.clear_all()
+        except Exception as e:
+            logger.warning(f"Error clearing database: {e}")
+            # Fallback to manual deletion
+            memory_ids = db.list_all()
+            for memory_id in memory_ids:
+                try:
+                    db.delete(memory_id)
+                except Exception:
+                    pass
+        
+        # Create example memory nodes
+        
+        # Work-related memories
+        if EMBEDDING_MODEL_AVAILABLE:
+            # Use embedding model for generation
+            work_memory = MemoryNode(generate_embedding_for_memory(
+                "Team meeting notes: Discussed project timeline, assigned tasks to team members, and set deadlines.",
+                "work"
+            ).tolist())
+        else:
+            # Use example embeddings
+            work_memory = MemoryNode([0.1, 0.2, 0.3, 0.4, 0.5])
+            
+        work_memory.set_attribute('title', 'Team Meeting Notes')
+        work_memory.set_attribute('category', 'work')
+        work_memory.set_attribute('importance', 0.8)
+        work_memory.set_attribute('content', "Team meeting notes: Discussed project timeline, assigned tasks to team members, and set deadlines.")
+        work_id = db.save(work_memory)
+        
+        # Research-related memories
+        if EMBEDDING_MODEL_AVAILABLE:
+            research_memory = MemoryNode(generate_embedding_for_memory(
+                "Research findings: New algorithms for efficient vector search in high-dimensional spaces.", 
+                "research"
+            ).tolist())
+        else:
+            research_memory = MemoryNode([0.5, 0.4, 0.3, 0.2, 0.1])
+            
+        research_memory.set_attribute('title', 'Vector Search Research')
+        research_memory.set_attribute('category', 'research')
+        research_memory.set_attribute('importance', 0.9)
+        research_memory.set_attribute('content', "Research findings: New algorithms for efficient vector search in high-dimensional spaces.")
+        research_id = db.save(research_memory)
+        
+        # Personal-related memories
+        if EMBEDDING_MODEL_AVAILABLE:
+            personal_memory = MemoryNode(generate_embedding_for_memory(
+                "Personal todo: Go grocery shopping, pay bills, and call mom this weekend.",
+                "personal"
+            ).tolist())
+        else:
+            personal_memory = MemoryNode([0.3, 0.3, 0.6, 0.4, 0.2])
+            
+        personal_memory.set_attribute('title', 'Weekend Tasks')
+        personal_memory.set_attribute('category', 'personal')
+        personal_memory.set_attribute('importance', 0.6)
+        personal_memory.set_attribute('content', "Personal todo: Go grocery shopping, pay bills, and call mom this weekend.")
+        personal_id = db.save(personal_memory)
+        
+        # Work-related memories with connection to research
+        if EMBEDDING_MODEL_AVAILABLE:
+            project_memory = MemoryNode(generate_embedding_for_memory(
+                "Project application: Implemented new vector search algorithm into our product for faster querying.",
+                "work"
+            ).tolist())
+        else: 
+            project_memory = MemoryNode([0.2, 0.7, 0.3, 0.6, 0.2])
+            
+        project_memory.set_attribute('title', 'Project Implementation')
+        project_memory.set_attribute('category', 'work')
+        project_memory.set_attribute('importance', 0.85)
+        project_memory.set_attribute('content', "Project application: Implemented new vector search algorithm into our product for faster querying.")
+        project_id = db.save(project_memory)
+        
+        # Create connections between memories
+        
+        # Research → Project (causation)
+        db.connect(research_id, project_id, "Causation", 0.9)
+        
+        # Work → Project (association)
+        db.connect(work_id, project_id, "Association", 0.7)
+        
+        # Project → Personal (custom)
+        db.connect(project_id, personal_id, "PrecededBy", 0.4)
+        
+        # Personal → Work (sequence)
+        db.connect(personal_id, work_id, "Sequence", 0.5)
+        
+        flash("Example dataset loaded successfully! 4 memories and 4 connections created.", "success")
+    except Exception as e:
+        flash(f"Error loading example dataset: {e}", "error")
+        
     return redirect(url_for('index'))
 
 @app.errorhandler(500)

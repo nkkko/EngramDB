@@ -1,0 +1,28 @@
+{% extends "base_simple.html" %}
+
+{% block title %}EngramDB - Search{% endblock %}
+
+{% block header %}Search Memories{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Search Features</h5>
+                <p class="card-text">
+                    EngramDB supports powerful search capabilities including:
+                </p>
+                <ul>
+                    <li>Vector similarity search for finding semantically similar memories</li>
+                    <li>Attribute-based filtering to locate specific memory types</li>
+                    <li>Temporal relationships to find memories connected in time</li>
+                </ul>
+                <p>
+                    This is a demo version. Full search functionality requires integration with the EngramDB database.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

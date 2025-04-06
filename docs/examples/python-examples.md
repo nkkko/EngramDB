@@ -1,0 +1,395 @@
+# Python Examples
+
+This document provides examples of how to use EngramDB in Python applications.
+
+## Basic Usage
+
+This example demonstrates the basic operations of creating a database, adding memories, and searching for similar memories.
+
+```python
+import engramdb
+import numpy as np
+
+def basic_usage_example():
+    # Create an in-memory database
+    db = engramdb.Database.in_memory()
+    print("Created in-memory database")
+    
+    # Create a memory node with numpy embeddings
+    embeddings1 = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
+    memory1 = engramdb.MemoryNode(embeddings1)
+    memory1.set_attribute("title", "Meeting notes")
+    memory1.set_attribute("category", "work")
+    memory1.set_attribute("importance", 0.8)
+    
+    # Save to database
+    memory1_id = db.save(memory1)
+    print(f"Saved memory with ID: {memory1_id}")
+    
+    # Create and save another memory
+    embeddings2 = np.array([0.2, 0.3, 0.4, 0.5], dtype=np.float32)
+    memory2 = engramdb.MemoryNode(embeddings2)
+    memory2.set_attribute("title", "Project idea")
+    memory2.set_attribute("category", "work")
+    memory2.set_attribute("importance", 0.9)
+    
+    memory2_id = db.save(memory2)
+    print(f"Saved memory with ID: {memory2_id}")
+    
+    # List all memories
+    all_ids = db.list_all()
+    print(f"Database contains {len(all_ids)} memories")
+    
+    # Load a memory
+    loaded_memory = db.load(memory1_id)
+    print(f"Loaded memory: {loaded_memory.get_attribute('title')}")
+    
+    # Search for similar memories
+    query_vector = np.array([0.15, 0.25, 0.35, 0.45], dtype=np.float32)
+    results = db.search_similar(query_vector, limit=5, threshold=0.0)
+    
+    print("Search results:")
+    for memory_id, similarity in results:
+        memory = db.load(memory_id)
+        print(f"  {memory.get_attribute('title')} (similarity: {similarity:.4f})")
+    
+    # Delete a memory
+    db.delete(memory1_id)
+    print(f"Deleted memory with ID: {memory1_id}")
+    
+    # Verify it's gone
+    remaining_ids = db.list_all()
+    print(f"Database now contains {len(remaining_ids)} memories")
+
+if __name__ == "__main__":
+    basic_usage_example()
+```
+
+## Working with Connections
+
+This example demonstrates how to create and manage connections between memory nodes.
+
+```python
+import engramdb
+import numpy as np
+
+def connections_example():
+    # Create an in-memory database
+    db = engramdb.Database.in_memory()
+    
+    # Create memory nodes
+    embeddings1 = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
+    memory1 = engramdb.MemoryNode(embeddings1)
+    memory1.set_attribute("title", "Meeting with team")
+    
+    embeddings2 = np.array([0.2, 0.3, 0.4, 0.5], dtype=np.float32)
+    memory2 = engramdb.MemoryNode(embeddings2)
+    memory2.set_attribute("title", "Action items from meeting")
+    
+    embeddings3 = np.array([0.3, 0.4, 0.5, 0.6], dtype=np.float32)
+    memory3 = engramdb.MemoryNode(embeddings3)
+    memory3.set_attribute("title", "Project timeline")
+    
+    # Save to database
+    memory1_id = db.save(memory1)
+    memory2_id = db.save(memory2)
+    memory3_id = db.save(memory3)
+    
+    # Create connections
+    db.add_connection(
+        memory1_id,
+        memory2_id,
+        engramdb.RelationshipType.CAUSATION,
+        0.9
+    )
+    
+    db.add_connection(
+        memory2_id,
+        memory3_id,
+        engramdb.RelationshipType.ASSOCIATION,
+        0.7
+    )
+    
+    # Get connections for a memory
+    connections = db.get_connections(memory1_id)
+    
+    print("Connections for memory 'Meeting with team':")
+    for connection in connections:
+        target = db.load(connection.target_id)
+        print(f"  Connected to '{target.get_attribute('title')}' with relationship '{connection.type_name}' (strength: {connection.strength:.2f})")
+    
+    # Remove a connection
+    removed = db.remove_connection(memory1_id, memory2_id)
+    print(f"Connection removed: {removed}")
+    
+    # Verify it's gone
+    updated_connections = db.get_connections(memory1_id)
+    print(f"Memory now has {len(updated_connections)} connections")
+
+if __name__ == "__main__":
+    connections_example()
+```
+
+## Complex Queries
+
+This example demonstrates how to use the query builder to perform complex queries.
+
+```python
+import engramdb
+import numpy as np
+
+def complex_query_example():
+    # Create an in-memory database
+    db = engramdb.Database.in_memory()
+    
+    # Add some test memories
+    add_test_memories(db)
+    
+    # Create filters
+    category_filter = engramdb.AttributeFilter.equals("category", "work")
+    importance_filter = engramdb.AttributeFilter.greater_than("importance", 0.7)
+    
+    # Create temporal filter for recent memories (last 24 hours)
+    time_filter = engramdb.TemporalFilter.within_last(24 * 60 * 60)
+    
+    # Execute the combined query
+    query_vector = np.array([0.1, 0.3, 0.5, 0.1], dtype=np.float32)  # Similar to "project plan"
+    
+    results = db.query()\
+        .with_vector(query_vector)\
+        .with_attribute_filter(category_filter)\
+        .with_attribute_filter(importance_filter)\
+        .with_temporal_filter(time_filter)\
+        .with_limit(10)\
+        .execute()
+    
+    print(f"Found {len(results)} important work memories:")
+    for memory in results:
+        print(f"  {memory.get_attribute('title')}")
+        print(f"    Importance: {memory.get_attribute('importance')}")
+
+def add_test_memories(db):
+    # Memory 1: Meeting notes
+    embeddings1 = np.array([0.1, 0.3, 0.5, 0.1], dtype=np.float32)
+    memory1 = engramdb.MemoryNode(embeddings1)
+    memory1.set_attribute("title", "Meeting Notes")
+    memory1.set_attribute("category", "work")
+    memory1.set_attribute("importance", 0.8)
+    db.save(memory1)
+    
+    # Memory 2: Shopping list
+    embeddings2 = np.array([0.8, 0.1, 0.0, 0.1], dtype=np.float32)
+    memory2 = engramdb.MemoryNode(embeddings2)
+    memory2.set_attribute("title", "Shopping List")
+    memory2.set_attribute("category", "personal")
+    memory2.set_attribute("importance", 0.4)
+    db.save(memory2)
+    
+    # Memory 3: Project idea
+    embeddings3 = np.array([0.2, 0.4, 0.4, 0.0], dtype=np.float32)
+    memory3 = engramdb.MemoryNode(embeddings3)
+    memory3.set_attribute("title", "Project Idea")
+    memory3.set_attribute("category", "work")
+    memory3.set_attribute("importance", 0.9)
+    db.save(memory3)
+    
+    # Memory 4: Project plan
+    embeddings4 = np.array([0.15, 0.35, 0.45, 0.05], dtype=np.float32)
+    memory4 = engramdb.MemoryNode(embeddings4)
+    memory4.set_attribute("title", "Project Plan")
+    memory4.set_attribute("category", "work")
+    memory4.set_attribute("importance", 0.95)
+    db.save(memory4)
+    
+    print(f"Added {4} test memories to the database")
+
+if __name__ == "__main__":
+    complex_query_example()
+```
+
+## Persistent Storage
+
+This example demonstrates how to use file-based storage for persistence.
+
+```python
+import engramdb
+import numpy as np
+import os
+
+def persistent_storage_example():
+    # Create a file-based database
+    storage_dir = "./my_python_database"
+    
+    # Create directory if it doesn't exist
+    os.makedirs(storage_dir, exist_ok=True)
+    
+    db = engramdb.Database.file_based(storage_dir)
+    print(f"Created file-based database at {storage_dir}")
+    
+    # Initialize to load existing memories
+    db.initialize()
+    
+    # Check if we have existing memories
+    existing_ids = db.list_all()
+    print(f"Found {len(existing_ids)} existing memories")
+    
+    if len(existing_ids) == 0:
+        # Add some test memories
+        embeddings = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
+        memory = engramdb.MemoryNode(embeddings)
+        memory.set_attribute("title", "Persistent memory")
+        
+        memory_id = db.save(memory)
+        print(f"Created new memory with ID: {memory_id}")
+    else:
+        # Load and display existing memories
+        for memory_id in existing_ids:
+            memory = db.load(memory_id)
+            print(f"Loaded memory: {memory.get_attribute('title')} (ID: {memory_id})")
+    
+    print("Database operations completed successfully")
+
+if __name__ == "__main__":
+    persistent_storage_example()
+```
+
+## Working with Temporal Layers
+
+This example demonstrates how to use temporal layers to track memory evolution.
+
+```python
+import engramdb
+import numpy as np
+
+def temporal_layers_example():
+    # Create an in-memory database
+    db = engramdb.Database.in_memory()
+    
+    # Create initial memory
+    embeddings = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
+    memory = engramdb.MemoryNode(embeddings)
+    memory.set_attribute("title", "Initial knowledge")
+    memory.set_attribute("confidence", 0.6)
+    
+    # Save to database
+    memory_id = db.save(memory)
+    print(f"Created initial memory with ID: {memory_id}")
+    
+    # Later, we want to update the memory
+    # First, load it
+    memory = db.load(memory_id)
+    
+    # Save the current state as a temporal layer
+    old_embeddings = memory.embeddings()
+    old_attributes = {
+        "title": memory.get_attribute("title"),
+        "confidence": memory.get_attribute("confidence")
+    }
+    
+    layer = engramdb.TemporalLayer(
+        old_embeddings,
+        old_attributes,
+        "Updated with new information"
+    )
+    
+    memory.add_temporal_layer(layer)
+    
+    # Now update the memory
+    new_embeddings = np.array([0.15, 0.25, 0.35, 0.45], dtype=np.float32)
+    memory.set_embeddings(new_embeddings)
+    memory.set_attribute("title", "Updated knowledge")
+    memory.set_attribute("confidence", 0.8)
+    
+    # Save the updated memory
+    db.save(memory)
+    print("Updated memory with a new temporal layer")
+    
+    # Load and examine the memory
+    memory = db.load(memory_id)
+    
+    print("Current state:")
+    print(f"  Title: {memory.get_attribute('title')}")
+    print(f"  Confidence: {memory.get_attribute('confidence'):.2f}")
+    
+    print(f"Temporal layers: {len(memory.temporal_layers())}")
+    for i, layer in enumerate(memory.temporal_layers()):
+        print(f"Layer {i + 1}:")
+        print(f"  Timestamp: {layer.timestamp()}")
+        print(f"  Reason: {layer.reason()}")
+        
+        if layer.attributes():
+            attributes = layer.attributes()
+            print(f"  Title: {attributes.get('title')}")
+            print(f"  Confidence: {attributes.get('confidence'):.2f}")
+
+if __name__ == "__main__":
+    temporal_layers_example()
+```
+
+## Using NumPy Integration
+
+This example demonstrates how to use NumPy arrays with EngramDB.
+
+```python
+import engramdb
+import numpy as np
+from sklearn.preprocessing import normalize
+
+def numpy_integration_example():
+    # Create an in-memory database
+    db = engramdb.Database.in_memory()
+    
+    # Create embeddings using NumPy
+    # Let's create some word embeddings as an example
+    words = ["database", "memory", "vector", "graph", "temporal"]
+    
+    # Create random embeddings (in a real application, these would come from a model)
+    embeddings = np.random.rand(len(words), 4).astype(np.float32)
+    
+    # Normalize the embeddings
+    embeddings = normalize(embeddings, axis=1)
+    
+    # Create memory nodes for each word
+    for i, word in enumerate(words):
+        memory = engramdb.MemoryNode(embeddings[i])
+        memory.set_attribute("word", word)
+        memory.set_attribute("index", i)
+        db.save(memory)
+    
+    print(f"Created {len(words)} word embeddings")
+    
+    # Now let's search for similar words
+    # Create a query vector (similar to "vector")
+    query_idx = words.index("vector")
+    query_vector = embeddings[query_idx]
+    
+    results = db.search_similar(query_vector, limit=len(words), threshold=0.0)
+    
+    print(f"Words similar to 'vector':")
+    for memory_id, similarity in results:
+        memory = db.load(memory_id)
+        print(f"  {memory.get_attribute('word')} (similarity: {similarity:.4f})")
+    
+    # We can also do vector arithmetic
+    # For example: "memory" + "graph" - "database"
+    memory_idx = words.index("memory")
+    graph_idx = words.index("graph")
+    database_idx = words.index("database")
+    
+    arithmetic_query = embeddings[memory_idx] + embeddings[graph_idx] - embeddings[database_idx]
+    
+    # Normalize the result
+    arithmetic_query = arithmetic_query / np.linalg.norm(arithmetic_query)
+    
+    results = db.search_similar(arithmetic_query, limit=len(words), threshold=0.0)
+    
+    print(f"Results for 'memory' + 'graph' - 'database':")
+    for memory_id, similarity in results:
+        memory = db.load(memory_id)
+        print(f"  {memory.get_attribute('word')} (similarity: {similarity:.4f})")
+
+if __name__ == "__main__":
+    numpy_integration_example()
+```
+
+These examples demonstrate the core functionality of EngramDB in Python applications. You can combine these patterns to build more complex applications that leverage the full power of the database.

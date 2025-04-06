@@ -1,0 +1,277 @@
+# Storage Engines
+
+EngramDB supports multiple storage backends to accommodate different use cases. This document explains the available storage engines and how to use them effectively.
+
+## Overview of Storage Engines
+
+EngramDB provides two main storage engines:
+
+1. **Memory Storage Engine**: Volatile in-memory storage for testing and development
+2. **File Storage Engine**: Persistent file-based storage for production use
+
+The storage engine is responsible for:
+
+- Saving memory nodes
+- Loading memory nodes
+- Deleting memory nodes
+- Listing all available memory nodes
+
+## Memory Storage Engine
+
+The Memory Storage Engine stores all data in RAM, making it fast but volatile. It's ideal for:
+
+- Development and testing
+- Short-lived applications
+- Scenarios where persistence isn't required
+
+### Creating a Memory Storage Engine
+
+#### Rust Example
+
+```rust
+use engramdb::{Database, MemoryNode};
+
+// Create an in-memory database
+let mut db = Database::in_memory();
+println!("Created in-memory database");
+```
+
+#### Python Example
+
+```python
+import engramdb
+
+# Create an in-memory database
+db = engramdb.Database.in_memory()
+print("Created in-memory database")
+```
+
+### Characteristics
+
+- **Speed**: Very fast operations
+- **Persistence**: None (data is lost when the application terminates)
+- **Scalability**: Limited by available RAM
+- **Concurrency**: Not thread-safe by default
+
+## File Storage Engine
+
+The File Storage Engine stores data on disk, providing persistence. It's suitable for:
+
+- Production applications
+- Long-lived data
+- Scenarios where data must survive application restarts
+
+### Creating a File Storage Engine
+
+#### Rust Example
+
+```rust
+use engramdb::{Database, DatabaseConfig};
+
+// Method 1: Using file_based constructor
+let mut db = Database::file_based("./my_database")?;
+
+// Method 2: Using DatabaseConfig
+let config = DatabaseConfig {
+    use_memory_storage: false,
+    storage_dir: Some("./my_database".to_string()),
+    cache_size: 100,
+};
+
+let mut db = Database::new(config)?;
+
+// Initialize to load existing memories
+db.initialize()?;
+```
+
+#### Python Example
+
+```python
+import engramdb
+import os
+
+# Create directory if it doesn't exist
+os.makedirs("./my_database", exist_ok=True)
+
+# Method 1: Using file_based constructor
+db = engramdb.Database.file_based("./my_database")
+
+# Method 2: Using DatabaseConfig
+config = engramdb.DatabaseConfig(
+    use_memory_storage=False,
+    storage_dir="./my_database",
+    cache_size=100
+)
+
+db = engramdb.Database(config)
+
+# Initialize to load existing memories
+db.initialize()
+```
+
+### Characteristics
+
+- **Speed**: Slower than memory storage but still efficient
+- **Persistence**: Data survives application restarts
+- **Scalability**: Limited by available disk space
+- **Concurrency**: Basic file locking for safety
+
+### File Storage Structure
+
+The File Storage Engine organizes data as follows:
+
+```
+storage_dir/
+├── memories/
+│   ├── 123e4567-e89b-12d3-a456-426614174000.json
+│   ├── 234e5678-e89b-12d3-a456-426614174001.json
+│   └── ...
+├── index/
+│   ├── vector_index.json
+│   └── ...
+└── metadata/
+    └── db_info.json
+```
+
+Each memory node is stored as a separate JSON file, named by its UUID.
+
+## Choosing a Storage Engine
+
+Consider these factors when choosing a storage engine:
+
+| Factor | Memory Storage | File Storage |
+|--------|---------------|--------------|
+| Speed | Very fast | Moderate |
+| Persistence | None | Yes |
+| Memory Usage | High | Low to moderate |
+| Durability | None | Good |
+| Use Case | Development, testing | Production |
+
+## Advanced Usage
+
+### Custom Configuration
+
+You can customize the database configuration:
+
+```rust
+let config = DatabaseConfig {
+    use_memory_storage: false,
+    storage_dir: Some("./custom_path".to_string()),
+    cache_size: 500, // Larger cache for better performance
+};
+
+let mut db = Database::new(config)?;
+```
+
+### Initialization
+
+When using file storage, you should initialize the database to load existing memories into the vector index:
+
+```rust
+// Create the database
+let mut db = Database::file_based("./my_database")?;
+
+// Initialize to load existing memories
+db.initialize()?;
+
+// Now the vector index is populated and ready for similarity search
+let results = db.search_similar(&query_vector, 5, 0.0)?;
+```
+
+### Migrating Between Storage Engines
+
+You can migrate data from one storage engine to another:
+
+```rust
+// Source database (in-memory)
+let mut source_db = Database::in_memory();
+
+// Add some memories to the source
+// ...
+
+// Target database (file-based)
+let mut target_db = Database::file_based("./migrated_data")?;
+
+// Migrate all memories
+for id in source_db.list_all()? {
+    let memory = source_db.load(id)?;
+    target_db.save(&memory)?;
+}
+
+println!("Migration complete");
+```
+
+## Implementation Details
+
+### StorageEngine Trait
+
+Both storage engines implement the `StorageEngine` trait:
+
+```rust
+pub trait StorageEngine: Send {
+    fn save(&mut self, node: &MemoryNode) -> Result<()>;
+    fn load(&self, id: Uuid) -> Result<MemoryNode>;
+    fn delete(&mut self, id: Uuid) -> Result<()>;
+    fn list_all(&self) -> Result<Vec<Uuid>>;
+}
+```
+
+This trait defines the core operations that any storage engine must support.
+
+### Memory Storage Implementation
+
+The Memory Storage Engine uses a simple HashMap to store memory nodes:
+
+```rust
+pub struct MemoryStorageEngine {
+    memories: HashMap<Uuid, MemoryNode>,
+}
+```
+
+### File Storage Implementation
+
+The File Storage Engine serializes memory nodes to JSON files:
+
+```rust
+pub struct FileStorageEngine {
+    base_dir: PathBuf,
+    memories_dir: PathBuf,
+    index_dir: PathBuf,
+    metadata_dir: PathBuf,
+}
+```
+
+## Best Practices
+
+### Memory Storage
+
+- Use for development, testing, and ephemeral applications
+- Be aware that all data will be lost when the application terminates
+- Monitor memory usage for large datasets
+
+### File Storage
+
+- Use for production applications where persistence is required
+- Always call `initialize()` after creating a file-based database
+- Implement regular backups of the storage directory
+- Consider file system performance characteristics
+
+### General Recommendations
+
+- Choose the appropriate storage engine based on your requirements
+- Initialize file-based databases to load existing memories
+- Implement error handling for storage operations
+- Consider implementing a custom storage engine for specialized needs
+
+## Future Storage Engines
+
+Future versions of EngramDB may include additional storage engines:
+
+- **Database Storage Engine**: Integration with SQL or NoSQL databases
+- **Distributed Storage Engine**: Support for clustered deployments
+- **Encrypted Storage Engine**: Enhanced security for sensitive data
+- **Tiered Storage Engine**: Automatic migration between hot and cold storage
+
+## Conclusion
+
+EngramDB's flexible storage engine architecture allows you to choose the right storage solution for your needs. Whether you need the speed of in-memory storage for development or the persistence of file-based storage for production, EngramDB provides the tools to manage your agent memories effectively.

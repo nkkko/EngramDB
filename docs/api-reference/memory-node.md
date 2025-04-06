@@ -1,0 +1,296 @@
+# MemoryNode API Reference
+
+The `MemoryNode` is the fundamental unit of storage in EngramDB. This document provides a detailed reference for the `MemoryNode` API.
+
+## Creating a Memory Node
+
+### `MemoryNode::new(embeddings)`
+
+Creates a new memory node with the given embeddings.
+
+**Parameters:**
+- `embeddings`: `Vec<f32>` - Vector representation of the memory content
+
+**Returns:**
+- A new `MemoryNode` with a generated UUID and initialized fields
+
+**Example:**
+```rust
+let embeddings = vec![0.1, 0.2, 0.3, 0.4];
+let memory = MemoryNode::new(embeddings);
+```
+
+## Basic Properties
+
+### `id()`
+
+Returns the unique identifier of this memory node.
+
+**Returns:**
+- `Uuid` - The unique identifier
+
+**Example:**
+```rust
+let id = memory.id();
+println!("Memory ID: {}", id);
+```
+
+### `embeddings()`
+
+Returns a reference to the vector embeddings.
+
+**Returns:**
+- `&[f32]` - Reference to the embeddings vector
+
+**Example:**
+```rust
+let embeddings = memory.embeddings();
+println!("Embeddings: {:?}", embeddings);
+```
+
+### `set_embeddings(embeddings)`
+
+Sets the embeddings to a new value.
+
+**Parameters:**
+- `embeddings`: `Vec<f32>` - New vector embeddings
+
+**Example:**
+```rust
+let new_embeddings = vec![0.2, 0.3, 0.4, 0.5];
+memory.set_embeddings(new_embeddings);
+```
+
+### `creation_timestamp()`
+
+Returns the creation timestamp.
+
+**Returns:**
+- `u64` - Unix timestamp when the memory was created
+
+**Example:**
+```rust
+let timestamp = memory.creation_timestamp();
+println!("Created at: {}", timestamp);
+```
+
+## Working with Attributes
+
+### `attributes()`
+
+Returns a reference to all attributes.
+
+**Returns:**
+- `&HashMap<String, AttributeValue>` - Reference to the attributes map
+
+**Example:**
+```rust
+let attributes = memory.attributes();
+println!("All attributes: {:?}", attributes);
+```
+
+### `get_attribute(key)`
+
+Gets the value of a specific attribute.
+
+**Parameters:**
+- `key`: `&str` - The attribute key to retrieve
+
+**Returns:**
+- `Option<&AttributeValue>` - The attribute value, or None if not found
+
+**Example:**
+```rust
+if let Some(value) = memory.get_attribute("importance") {
+    println!("Importance: {:?}", value);
+}
+```
+
+### `set_attribute(key, value)`
+
+Sets an attribute.
+
+**Parameters:**
+- `key`: `String` - The attribute key
+- `value`: `AttributeValue` - The attribute value
+
+**Example:**
+```rust
+memory.set_attribute(
+    "title".to_string(),
+    AttributeValue::String("Important memory".to_string())
+);
+
+memory.set_attribute(
+    "importance".to_string(),
+    AttributeValue::Float(0.8)
+);
+```
+
+## Working with Connections
+
+### `connections()`
+
+Returns a reference to all connections.
+
+**Returns:**
+- `&Vec<Connection>` - Reference to the connections vector
+
+**Example:**
+```rust
+let connections = memory.connections();
+println!("Number of connections: {}", connections.len());
+```
+
+### `add_connection(connection)`
+
+Adds a connection to another memory node.
+
+**Parameters:**
+- `connection`: `Connection` - The connection to add
+
+**Example:**
+```rust
+let target_id = Uuid::new_v4();
+let connection = Connection::new(
+    target_id,
+    RelationshipType::Association,
+    0.75
+);
+memory.add_connection(connection);
+```
+
+### `remove_connection(target_id)`
+
+Removes a connection to the specified target.
+
+**Parameters:**
+- `target_id`: `Uuid` - The ID of the target memory node
+
+**Returns:**
+- `bool` - True if a connection was removed, false otherwise
+
+**Example:**
+```rust
+let removed = memory.remove_connection(target_id);
+if removed {
+    println!("Connection removed");
+}
+```
+
+## Working with Temporal Layers
+
+### `temporal_layers()`
+
+Returns a reference to all temporal layers.
+
+**Returns:**
+- `&Vec<TemporalLayer>` - Reference to the temporal layers vector
+
+**Example:**
+```rust
+let layers = memory.temporal_layers();
+println!("Number of temporal layers: {}", layers.len());
+```
+
+### `add_temporal_layer(layer)`
+
+Adds a temporal layer to track changes to this memory.
+
+**Parameters:**
+- `layer`: `TemporalLayer` - The temporal layer to add
+
+**Example:**
+```rust
+let layer = TemporalLayer::new(
+    Some(old_embeddings),
+    Some(old_attributes),
+    "Updated with new information".to_string()
+);
+memory.add_temporal_layer(layer);
+```
+
+## Access Patterns
+
+### `access_patterns()`
+
+Returns a reference to the access patterns.
+
+**Returns:**
+- `&AccessHistory` - Reference to the access history
+
+**Example:**
+```rust
+let access_history = memory.access_patterns();
+println!("Access count: {}", access_history.access_count());
+```
+
+### `record_access()`
+
+Records an access to this memory node.
+
+**Example:**
+```rust
+memory.record_access();
+```
+
+## AttributeValue Types
+
+The `AttributeValue` enum represents different types of values that can be stored as attributes:
+
+```rust
+pub enum AttributeValue {
+    String(String),
+    Integer(i64),
+    Float(f64),
+    Boolean(bool),
+    List(Vec<AttributeValue>),
+    Map(std::collections::HashMap<String, AttributeValue>),
+}
+```
+
+**Example:**
+```rust
+// String attribute
+memory.set_attribute(
+    "title".to_string(),
+    AttributeValue::String("Meeting notes".to_string())
+);
+
+// Integer attribute
+memory.set_attribute(
+    "priority".to_string(),
+    AttributeValue::Integer(1)
+);
+
+// Float attribute
+memory.set_attribute(
+    "confidence".to_string(),
+    AttributeValue::Float(0.95)
+);
+
+// Boolean attribute
+memory.set_attribute(
+    "is_important".to_string(),
+    AttributeValue::Boolean(true)
+);
+
+// List attribute
+memory.set_attribute(
+    "tags".to_string(),
+    AttributeValue::List(vec![
+        AttributeValue::String("work".to_string()),
+        AttributeValue::String("project".to_string())
+    ])
+);
+
+// Map attribute
+let mut map = std::collections::HashMap::new();
+map.insert("name".to_string(), AttributeValue::String("John".to_string()));
+map.insert("age".to_string(), AttributeValue::Integer(30));
+
+memory.set_attribute(
+    "person".to_string(),
+    AttributeValue::Map(map)
+);
+```

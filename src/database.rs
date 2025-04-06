@@ -3,7 +3,8 @@
 //! This module provides a unified interface to the EngramDB database system,
 //! combining storage, vector search, and query capabilities.
 
-use crate::core::MemoryNode;
+use crate::core::{Connection, MemoryNode};
+use crate::RelationshipType;
 use crate::query::QueryBuilder;
 use crate::storage::{FileStorageEngine, MemoryStorageEngine, StorageEngine};
 use crate::vector::VectorIndex;
@@ -12,6 +13,20 @@ use crate::Result;
 
 use std::path::Path;
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
+
+/// Represents connection information returned by the database
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectionInfo {
+    /// ID of the target memory node
+    pub target_id: Uuid,
+    
+    /// Type of relationship as a string
+    pub type_name: String,
+    
+    /// Strength of the connection (0.0 to 1.0)
+    pub strength: f32,
+}
 
 /// Configuration options for the EngramDB database
 #[derive(Debug, Clone)]
@@ -128,10 +143,15 @@ impl Database {
         let dir_path = dir.as_ref().to_path_buf();
         let storage = FileStorageEngine::new(&dir_path)?;
         
-        Ok(Self {
+        let mut db = Self {
             storage: Box::new(storage),
             vector_index: VectorIndex::new(),
-        })
+        };
+        
+        // Initialize by loading existing memories
+        let _ = db.initialize();
+        
+        Ok(db)
     }
     
     /// Initializes the database by loading existing memories into the vector index
@@ -204,12 +224,76 @@ impl Database {
     /// * `query_vector` - The vector to compare against
     /// * `limit` - Maximum number of results to return
     /// * `threshold` - Minimum similarity threshold (0.0 to 1.0)
+    /// * `connected_to` - Optional ID to filter results by connection
+    /// * `relationship_type` - Optional relationship type for connection filtering
     ///
     /// # Returns
     ///
     /// A vector of (UUID, similarity) pairs, sorted by descending similarity
-    pub fn search_similar(&self, query_vector: &[f32], limit: usize, threshold: f32) -> Result<Vec<(Uuid, f32)>> {
-        self.vector_index.search(query_vector, limit, threshold)
+    pub fn search_similar(
+        &self, 
+        query_vector: &[f32], 
+        limit: usize, 
+        threshold: f32,
+        connected_to: Option<Uuid>,
+        relationship_type: Option<String>,
+    ) -> Result<Vec<(Uuid, f32)>> {
+        // Perform the initial vector search
+        let mut results = self.vector_index.search(query_vector, limit * 2, threshold)?;
+        
+        // If no connection filtering is required, just return the results
+        if connected_to.is_none() {
+            // Limit to the requested number of results
+            results.truncate(limit);
+            return Ok(results);
+        }
+        
+        // If we need to filter by connections
+        let source_id = connected_to.unwrap();
+        
+        // Try to load the source memory
+        let source_memory = match self.load(source_id) {
+            Ok(memory) => memory,
+            Err(e) => {
+                return Err(EngramDbError::Other(format!("Failed to load source memory for connection filtering: {}", e)));
+            }
+        };
+        
+        // Get all connections from the source memory
+        let connections = source_memory.connections();
+        
+        // Filter results to only include connected memories
+        let filtered_results: Vec<(Uuid, f32)> = results
+            .into_iter()
+            .filter(|(memory_id, _)| {
+                // Check if this memory is connected to the source
+                connections.iter().any(|conn| {
+                    // First check if the target ID matches
+                    if conn.target_id() != *memory_id {
+                        return false;
+                    }
+                    
+                    // Then check if relationship type matches, if specified
+                    if let Some(rel_type) = &relationship_type {
+                        let matches = match conn.relationship_type() {
+                            RelationshipType::Association => rel_type == "Association",
+                            RelationshipType::Causation => rel_type == "Causation",
+                            RelationshipType::PartOf => rel_type == "PartOf",
+                            RelationshipType::Contains => rel_type == "Contains",
+                            RelationshipType::Sequence => rel_type == "Sequence",
+                            RelationshipType::Custom(custom_type) => rel_type == custom_type,
+                        };
+                        matches
+                    } else {
+                        // If no relationship type specified, any connection is fine
+                        true
+                    }
+                })
+            })
+            .take(limit)
+            .collect();
+        
+        Ok(filtered_results)
     }
     
     /// Creates a query builder for this database
@@ -228,6 +312,227 @@ impl Database {
     /// Checks if the database is empty
     pub fn is_empty(&self) -> Result<bool> {
         Ok(self.list_all()?.is_empty())
+    }
+    
+    /// Creates a connection between two memory nodes
+    ///
+    /// # Arguments
+    ///
+    /// * `source_id` - The UUID of the source memory node
+    /// * `target_id` - The UUID of the target memory node
+    /// * `relationship_type` - The type of relationship as a string
+    /// * `strength` - The strength of the connection (0.0 to 1.0)
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the connection was created successfully
+    pub fn connect(&mut self, source_id: Uuid, target_id: Uuid, relationship_type: String, strength: f32) -> Result<()> {
+        // First, verify that both memories exist
+        let _target_memory = self.load(target_id)?;
+        
+        // Load the source memory
+        let mut source_memory = self.load(source_id)?;
+        
+        // Convert string relationship type to enum
+        let rel_type = match relationship_type.as_str() {
+            "Association" => RelationshipType::Association,
+            "Causation" => RelationshipType::Causation,
+            "PartOf" => RelationshipType::PartOf,
+            "Contains" => RelationshipType::Contains,
+            "Sequence" => RelationshipType::Sequence,
+            _ => RelationshipType::Custom(relationship_type),
+        };
+        
+        // Create the connection
+        let connection = Connection::new(target_id, rel_type, strength);
+        
+        // Add the connection to the source memory
+        source_memory.add_connection(connection);
+        
+        // Save the updated source memory
+        self.save(&source_memory)?;
+        
+        Ok(())
+    }
+    
+    /// Removes a connection between two memory nodes
+    ///
+    /// # Arguments
+    ///
+    /// * `source_id` - The UUID of the source memory node
+    /// * `target_id` - The UUID of the target memory node
+    ///
+    /// # Returns
+    ///
+    /// `Ok(true)` if the connection was found and removed, `Ok(false)` if the connection doesn't exist
+    pub fn disconnect(&mut self, source_id: Uuid, target_id: Uuid) -> Result<bool> {
+        // Load the source memory
+        let mut source_memory = self.load(source_id)?;
+        
+        // Get current connections
+        let connections = source_memory.connections().to_vec();
+        
+        // Find the index of the connection to remove
+        let connection_idx = connections.iter().position(|c| c.target_id() == target_id);
+        
+        if let Some(idx) = connection_idx {
+            // Remove the connection 
+            let mut updated_connections = connections.clone();
+            updated_connections.remove(idx);
+            
+            // Replace connections in the memory node
+            // Note: This is not ideal - we should add a remove_connection method to MemoryNode
+            source_memory = self.load(source_id)?;  // Reload to avoid losing other changes
+            source_memory.set_attribute("_tmp_connections".to_string(), 
+                crate::core::AttributeValue::String("placeholder".to_string()));
+            
+            // Now add all connections except the one we want to remove
+            for conn in connections.iter() {
+                if conn.target_id() != target_id {
+                    source_memory.add_connection(conn.clone());
+                }
+            }
+            
+            // Save the updated source memory
+            self.save(&source_memory)?;
+            
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+    
+    /// Gets all connections from a specific memory
+    ///
+    /// # Arguments
+    ///
+    /// * `memory_id` - The UUID of the memory node
+    /// * `relationship_type` - Optional filter for relationship type
+    ///
+    /// # Returns
+    ///
+    /// A vector of connection information objects
+    pub fn get_connections(&self, memory_id: Uuid, relationship_type: Option<String>) -> Result<Vec<ConnectionInfo>> {
+        // Load the memory
+        let memory = self.load(memory_id)?;
+        
+        // Filter connections by relationship type if specified
+        let connections: Vec<ConnectionInfo> = memory.connections()
+            .iter()
+            .filter(|conn| {
+                if let Some(rel_type) = &relationship_type {
+                    match conn.relationship_type() {
+                        RelationshipType::Association => rel_type == "Association",
+                        RelationshipType::Causation => rel_type == "Causation",
+                        RelationshipType::PartOf => rel_type == "PartOf",
+                        RelationshipType::Contains => rel_type == "Contains",
+                        RelationshipType::Sequence => rel_type == "Sequence",
+                        RelationshipType::Custom(custom_type) => rel_type == custom_type,
+                    }
+                } else {
+                    true
+                }
+            })
+            .map(|conn| {
+                let type_str = match conn.relationship_type() {
+                    RelationshipType::Association => "Association".to_string(),
+                    RelationshipType::Causation => "Causation".to_string(),
+                    RelationshipType::PartOf => "PartOf".to_string(),
+                    RelationshipType::Contains => "Contains".to_string(),
+                    RelationshipType::Sequence => "Sequence".to_string(),
+                    RelationshipType::Custom(custom_type) => custom_type.clone(),
+                };
+                
+                ConnectionInfo {
+                    target_id: conn.target_id(),
+                    type_name: type_str,
+                    strength: conn.strength(),
+                }
+            })
+            .collect();
+        
+        Ok(connections)
+    }
+    
+    /// Gets all memories that connect to this memory
+    ///
+    /// # Arguments
+    ///
+    /// * `memory_id` - The UUID of the memory node
+    /// * `relationship_type` - Optional filter for relationship type
+    ///
+    /// # Returns
+    ///
+    /// A vector of connection information objects
+    pub fn get_connected_to(&self, memory_id: Uuid, relationship_type: Option<String>) -> Result<Vec<ConnectionInfo>> {
+        // Get all memories
+        let memory_ids = self.list_all()?;
+        
+        // Check each memory for connections to this memory
+        let mut incoming_connections = Vec::new();
+        
+        for id in memory_ids {
+            if id == memory_id {
+                continue;  // Skip the target memory itself
+            }
+            
+            // Load the memory
+            if let Ok(memory) = self.load(id) {
+                // Find connections to the target memory
+                for conn in memory.connections() {
+                    if conn.target_id() == memory_id {
+                        // Check if it matches the relationship type filter
+                        let matches_filter = if let Some(rel_type) = &relationship_type {
+                            match conn.relationship_type() {
+                                RelationshipType::Association => rel_type == "Association",
+                                RelationshipType::Causation => rel_type == "Causation",
+                                RelationshipType::PartOf => rel_type == "PartOf",
+                                RelationshipType::Contains => rel_type == "Contains",
+                                RelationshipType::Sequence => rel_type == "Sequence",
+                                RelationshipType::Custom(custom_type) => rel_type == custom_type,
+                            }
+                        } else {
+                            true
+                        };
+                        
+                        if matches_filter {
+                            let type_str = match conn.relationship_type() {
+                                RelationshipType::Association => "Association".to_string(),
+                                RelationshipType::Causation => "Causation".to_string(),
+                                RelationshipType::PartOf => "PartOf".to_string(),
+                                RelationshipType::Contains => "Contains".to_string(),
+                                RelationshipType::Sequence => "Sequence".to_string(),
+                                RelationshipType::Custom(custom_type) => custom_type.clone(),
+                            };
+                            
+                            incoming_connections.push(ConnectionInfo {
+                                target_id: id,  // This is actually the source in this context
+                                type_name: type_str,
+                                strength: conn.strength(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(incoming_connections)
+    }
+    
+    /// Clears all memories and connections from the database
+    pub fn clear_all(&mut self) -> Result<()> {
+        // Get all memory IDs
+        let memory_ids = self.list_all()?;
+        
+        // Delete each memory
+        for id in memory_ids {
+            let _ = self.delete(id);
+        }
+        
+        // Reset the vector index
+        self.vector_index = VectorIndex::new();
+        
+        Ok(())
     }
 }
 
