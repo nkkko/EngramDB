@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
     "./**/*.{js,jsx,ts,tsx,md,mdx}",
     "./node_modules/@mintlify/components/**/*.{js,jsx,ts,tsx}",
@@ -75,4 +75,7 @@ module.exports = {
   plugins: [
     require('@tailwindcss/typography'),
   ],
+  mintlify: {
+    icons: ['magnifying-glass', 'server', 'code', 'clock', 'python', 'browser', 'database', 'rocket', 'book', 'flask', 'time', 'link']
+  }
 }

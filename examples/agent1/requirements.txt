@@ -1,0 +1,6 @@
+flask==2.3.3
+litellm==1.65.4
+numpy>=1.24.0
+
+# EngramDB should be installed from local repository:
+# pip install -e ../../python/

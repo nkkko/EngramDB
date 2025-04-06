@@ -2,9 +2,12 @@
   "name": "engramdb-docs",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@mintlify/components": "^3.0.0",
     "@tailwindcss/typography": "^0.5.10",
-    "tailwindcss": "^3.3.0"
+    "tailwindcss": "^3.3.0",
+    "@heroicons/react": "^2.0.18",
+    "react-icons": "^4.10.1"
   }
 }
