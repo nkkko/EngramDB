@@ -1,8 +1,3 @@
----
-title: "EngramDB: Engram Database"
-description: "A specialized database system for agent memory management"
----
-
 # EngramDB: Engram Database
 
 EngramDB is a specialized database system designed specifically for agent memory management. It provides efficient storage, retrieval, and querying of agent memories using a unified memory representation model.
