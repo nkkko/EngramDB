@@ -1582,36 +1582,6 @@ def run_integrated_server():
 # routes directly with app.add_url_rule, which works even after the first request
 print("Using direct route registration approach (no blueprint needed)")
 
-# Register the default generated site home page
-from flask import render_template_string
-@app.route('/generated', strict_slashes=False)
-@app.route('/generated/', strict_slashes=False)
-def generated_site_home():
-    """Default landing page for the generated website"""
-    return render_template_string('''
-        <html>
-        <head>
-            <title>Generated Flask Website</title>
-            <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
-                .card { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px; }
-                .info { background: #e8f5e9; padding: 15px; border-radius: 5px; border-left: 5px solid #4CAF50; margin-bottom: 20px; }
-            </style>
-        </head>
-        <body>
-            <h1>Generated Flask Website</h1>
-            
-            <div class="info">
-                <h3>No Components Available Yet</h3>
-                <p>Your generated website will appear here once you create components.</p>
-                <p>Return to the <a href="/">main page</a> to generate a website.</p>
-                <p>Use the Flask Website Generator to create components, then type 'save' to register the routes.</p>
-            </div>
-        </body>
-        </html>
-    ''')
-
 if __name__ == "__main__":
     import sys
 

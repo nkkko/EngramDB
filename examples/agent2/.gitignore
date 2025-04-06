@@ -1,0 +1,32 @@
+# Environment and configuration
+.env
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# EngramDB storage files
+*.engramdb
+agent_memory.engramdb
+
+# Generated website files
+generated_flask_website/
+
+# API keys and secrets
+.env.local
+.env.*.local
+
+# IDE specific files
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+*llms.txt
