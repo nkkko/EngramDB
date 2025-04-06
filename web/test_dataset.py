@@ -131,7 +131,7 @@ def main():
             print(f"Success! Loaded {len(node_ids)} nodes from minimal dataset")
             
             # Display the nodes from minimal dataset
-            print("\nMinimal dataset nodes:")
+            print("\nMinimal dataset nodes (AI Assistant Memory):")
             for node_id in node_ids:
                 print_node_details(db, node_id, indent="  ")
             
@@ -149,7 +149,7 @@ def main():
             print(f"Success! Loaded {len(node_ids)} nodes from full dataset")
             
             # Display a sample of nodes from the full dataset
-            print("\nSample nodes from full dataset:")
+            print("\nSample nodes from full dataset (AI Assistant Memory):")
             for node_id in node_ids[:3]:  # Just show the first 3
                 print_node_details(db, node_id, indent="  ")
             

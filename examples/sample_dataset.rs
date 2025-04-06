@@ -250,7 +250,7 @@ pub fn load_minimal_dataset(db: &mut Database) -> Result<Vec<uuid::Uuid>> {
         engramdb::core::AttributeValue::Float(0.8));
     conversation.set_attribute("content".to_string(), 
         engramdb::core::AttributeValue::String(
-            "Alice asked about distributed consensus algorithms and their trade-offs in production systems."
+            "Alice asked about distributed consensus algorithms and their trade-offs in production systems.".to_string()
         ));
     let conversation_id = db.save(&conversation)?;
     node_ids.push(conversation_id);
@@ -265,7 +265,7 @@ pub fn load_minimal_dataset(db: &mut Database) -> Result<Vec<uuid::Uuid>> {
         engramdb::core::AttributeValue::Float(0.7));
     knowledge.set_attribute("content".to_string(), 
         engramdb::core::AttributeValue::String(
-            "Core principles of distributed systems including CAP theorem, consistency models, and consensus algorithms."
+            "Core principles of distributed systems including CAP theorem, consistency models, and consensus algorithms.".to_string()
         ));
     let knowledge_id = db.save(&knowledge)?;
     node_ids.push(knowledge_id);
@@ -280,7 +280,7 @@ pub fn load_minimal_dataset(db: &mut Database) -> Result<Vec<uuid::Uuid>> {
         engramdb::core::AttributeValue::Float(0.8));
     resource.set_attribute("content".to_string(), 
         engramdb::core::AttributeValue::String(
-            "Designing Data-Intensive Applications by Martin Kleppmann - an excellent book on distributed systems principles."
+            "Designing Data-Intensive Applications by Martin Kleppmann - an excellent book on distributed systems principles.".to_string()
         ));
     let resource_id = db.save(&resource)?;
     node_ids.push(resource_id);
@@ -295,7 +295,7 @@ pub fn load_minimal_dataset(db: &mut Database) -> Result<Vec<uuid::Uuid>> {
         engramdb::core::AttributeValue::Float(0.9));
     project.set_attribute("content".to_string(), 
         engramdb::core::AttributeValue::String(
-            "Alice is building a distributed feature store for machine learning features."
+            "Alice is building a distributed feature store for machine learning features.".to_string()
         ));
     let project_id = db.save(&project)?;
     node_ids.push(project_id);
