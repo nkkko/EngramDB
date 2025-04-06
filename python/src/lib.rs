@@ -11,6 +11,10 @@ use engramdb::{
 use engramdb::core::AttributeValue;
 use std::path::PathBuf;
 
+// Import the sample dataset module
+#[path = "../../examples/sample_dataset.rs"]
+mod sample_dataset;
+
 /// Simple function to test that the Python binding works
 #[pyfunction]
 fn sum_as_string(a: usize, b: usize) -> String {
@@ -292,10 +296,30 @@ impl From<RelationshipType> for EngramDbRelationshipType {
     }
 }
 
+/// Load a sample dataset with an AI Coding Agent bug fixing workflow
+#[pyfunction]
+fn load_sample_dataset(db: &mut Database) -> PyResult<Vec<String>> {
+    match sample_dataset::load_sample_dataset(&mut db.inner) {
+        Ok(ids) => Ok(ids.into_iter().map(|id| id.to_string()).collect()),
+        Err(e) => Err(PyValueError::new_err(format!("Failed to load sample dataset: {}", e)))
+    }
+}
+
+/// Load a minimal sample dataset for demonstration purposes
+#[pyfunction]
+fn load_minimal_dataset(db: &mut Database) -> PyResult<Vec<String>> {
+    match sample_dataset::load_minimal_dataset(&mut db.inner) {
+        Ok(ids) => Ok(ids.into_iter().map(|id| id.to_string()).collect()),
+        Err(e) => Err(PyValueError::new_err(format!("Failed to load minimal dataset: {}", e)))
+    }
+}
+
 /// Register the Python module
 #[pymodule]
 fn engramdb_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+    m.add_function(wrap_pyfunction!(load_sample_dataset, m)?)?;
+    m.add_function(wrap_pyfunction!(load_minimal_dataset, m)?)?;
     m.add_class::<MemoryNode>()?;
     m.add_class::<Database>()?;
     m.add_class::<RelationshipType>()?;

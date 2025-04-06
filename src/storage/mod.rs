@@ -5,9 +5,11 @@
 
 mod file_storage;
 mod memory_storage;
+mod single_file_storage;
 
 pub use file_storage::FileStorageEngine;
 pub use memory_storage::MemoryStorageEngine;
+pub use single_file_storage::SingleFileStorageEngine;
 
 use crate::core::MemoryNode;
 use crate::Result;

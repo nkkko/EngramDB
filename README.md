@@ -92,6 +92,8 @@ python examples/final_demo.py
 
 #### Web Interface
 
+![EngramDB Web Interface](assets/engram_web_graph.jpg)
+
 The web interface provides a visual way to interact with the database:
 
 ```bash

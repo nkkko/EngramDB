@@ -6,7 +6,7 @@
 use crate::core::{Connection, MemoryNode};
 use crate::RelationshipType;
 use crate::query::QueryBuilder;
-use crate::storage::{FileStorageEngine, MemoryStorageEngine, StorageEngine};
+use crate::storage::{FileStorageEngine, MemoryStorageEngine, SingleFileStorageEngine, StorageEngine};
 use crate::vector::VectorIndex;
 use crate::error::EngramDbError;
 use crate::Result;
@@ -28,14 +28,27 @@ pub struct ConnectionInfo {
     pub strength: f32,
 }
 
+/// Storage type options for the database
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum StorageType {
+    /// In-memory storage (volatile)
+    Memory,
+    
+    /// Multi-file storage (one file per node)
+    MultiFile,
+    
+    /// Single-file storage (all nodes in one file)
+    SingleFile,
+}
+
 /// Configuration options for the EngramDB database
 #[derive(Debug, Clone)]
 pub struct DatabaseConfig {
-    /// Whether to use in-memory storage (volatile) or file-based storage (persistent)
-    pub use_memory_storage: bool,
+    /// The type of storage engine to use
+    pub storage_type: StorageType,
     
-    /// Directory path for file storage (ignored if using memory storage)
-    pub storage_dir: Option<String>,
+    /// Path for storage (directory for MultiFile, file for SingleFile)
+    pub storage_path: Option<String>,
     
     /// Size of the query result cache (0 to disable caching)
     pub cache_size: usize,
@@ -44,8 +57,8 @@ pub struct DatabaseConfig {
 impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
-            use_memory_storage: false,
-            storage_dir: Some("./engramdb_storage".to_string()),
+            storage_type: StorageType::MultiFile,
+            storage_path: Some("./engramdb_storage".to_string()),
             cache_size: 100,
         }
     }
@@ -98,15 +111,21 @@ impl Database {
     ///
     /// A new Database instance, or an error if initialization failed
     pub fn new(config: DatabaseConfig) -> Result<Self> {
-        let storage: Box<dyn StorageEngine> = if config.use_memory_storage {
-            Box::new(MemoryStorageEngine::new())
-        } else {
-            let path = match &config.storage_dir {
-                Some(dir) => dir,
-                None => return Err(EngramDbError::Other("Storage directory must be specified for file storage".to_string())),
-            };
+        let storage: Box<dyn StorageEngine> = match config.storage_type {
+            StorageType::Memory => Box::new(MemoryStorageEngine::new()),
             
-            Box::new(FileStorageEngine::new(Path::new(path))?)
+            StorageType::MultiFile | StorageType::SingleFile => {
+                let path = match &config.storage_path {
+                    Some(path) => path,
+                    None => return Err(EngramDbError::Other("Storage path must be specified for file-based storage".to_string())),
+                };
+                
+                match config.storage_type {
+                    StorageType::MultiFile => Box::new(FileStorageEngine::new(Path::new(path))?),
+                    StorageType::SingleFile => Box::new(SingleFileStorageEngine::new(Path::new(path))?),
+                    _ => unreachable!(),
+                }
+            }
         };
         
         let vector_index = VectorIndex::new();
@@ -130,7 +149,7 @@ impl Database {
         }
     }
     
-    /// Creates a file-based database at the specified directory
+    /// Creates a multi-file based database at the specified directory
     ///
     /// # Arguments
     ///
@@ -142,6 +161,30 @@ impl Database {
     pub fn file_based<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let dir_path = dir.as_ref().to_path_buf();
         let storage = FileStorageEngine::new(&dir_path)?;
+        
+        let mut db = Self {
+            storage: Box::new(storage),
+            vector_index: VectorIndex::new(),
+        };
+        
+        // Initialize by loading existing memories
+        let _ = db.initialize();
+        
+        Ok(db)
+    }
+    
+    /// Creates a single-file based database at the specified file path
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - Path to the database file
+    ///
+    /// # Returns
+    ///
+    /// A new Database instance, or an error if initialization failed
+    pub fn single_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file_path = file_path.as_ref().to_path_buf();
+        let storage = SingleFileStorageEngine::new(&file_path)?;
         
         let mut db = Self {
             storage: Box::new(storage),

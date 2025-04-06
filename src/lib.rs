@@ -15,6 +15,7 @@ pub use crate::core::MemoryNode;
 pub use crate::core::connection::RelationshipType;
 pub use crate::database::Database;
 pub use crate::database::DatabaseConfig;
+pub use crate::database::StorageType;
 pub use crate::query::QueryBuilder;
 pub use crate::storage::StorageEngine;
 

@@ -82,12 +82,23 @@ db.configure_index()
 - [ ] [P1] Support concurrent readers with single writer pattern
 - [ ] [P2] Implement deadlock detection and prevention
 
-### 4. Query Optimization
+### 4. Query Optimization & Language
 
 - [ ] [P2] Add statistics collection on data distribution
 - [ ] [P1] Implement a query planner with cost-based optimization
 - [ ] [P2] Create execution plans optimized for different query patterns
 - [ ] [P1] Add query result caching for frequently accessed memories
+- [ ] [P1] Design and implement a custom query language for memory retrieval
+
+```
+# Example of potential query language:
+FIND MEMORIES
+SIMILAR TO [0.1, 0.3, 0.5, 0.2] WITH SIMILARITY > 0.7
+WHERE attribute.category = "meeting" AND attribute.importance > 0.8
+CREATED WITHIN LAST 7 DAYS
+CONNECTED TO "d8f7a2e5-1c3b-4a6d-9e8f-5b7a2c3d1e0f" BY "Association"
+LIMIT 10
+```
 
 ## Medium Priority Improvements
 
@@ -114,12 +125,23 @@ let results2 = prepared_query.execute(vec2, "personal")?;
 - [ ] [P2] Create a plugin system for custom similarity functions
 - [ ] [P3] Support user-defined attribute filters
 - [ ] [P2] Allow custom storage backends
+- [ ] [P3] Add JSON-LD support for enhanced semantic representation
 
 ```rust
 // Register custom similarity function
 db.register_similarity_function("manhattan_distance", |a, b| {
     a.iter().zip(b).map(|(x, y)| (x - y).abs()).sum()
 });
+
+// Example of using JSON-LD contexts
+db.with_json_ld_context(r#"{
+  "@context": {
+    "engram": "http://example.org/engram/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "connections": {"@id": "engram:connections", "@container": "@set"},
+    "knows": "foaf:knows"
+  }
+}"#);
 ```
 
 ### 7. Migration and Schema Evolution
@@ -127,6 +149,7 @@ db.register_similarity_function("manhattan_distance", |a, b| {
 - [ ] [P2] Support upgrading/downgrading database versions
 - [ ] [P2] Add schema migration utilities
 - [ ] [P3] Implement backward compatibility features
+- [ ] [P2] Rename "MemoryNode" to "Engram" for better terminology alignment
 
 ```rust
 // Example migration support
@@ -136,6 +159,11 @@ let migration = db.create_migration("v1-to-v2")
     .apply_to_matching(AttributeFilter::equals("type", "memory"));
 
 db.apply_migration(migration)?;
+
+// Updated terminology example:
+let engram = Engram::new(vec![0.1, 0.2, 0.3, 0.4]);
+engram.set_attribute("title", "Meeting notes");
+db.save(&engram)?;
 ```
 
 ## Lower Priority Improvements
@@ -148,8 +176,8 @@ db.apply_migration(migration)?;
 
 ### 9. Python SDK
 
-- [ ] [P1] Implement PyO3 bindings for core EngramDB functionality
-- [ ] [P1] Create Pythonic wrapper classes for MemoryNode and Database
+- [x] [P1] Implement PyO3 bindings for core EngramDB functionality (completed 2025-04-01)
+- [x] [P1] Create Pythonic wrapper classes for MemoryNode and Database (completed 2025-04-01)
 - [ ] [P2] Develop Python-native query builder interface
 - [ ] [P2] Write comprehensive Python documentation and examples
 - [ ] [P3] Add compatibility with popular Python ML libraries (numpy, pytorch, etc.)
@@ -160,20 +188,39 @@ db.apply_migration(migration)?;
 - [ ] [P3] Create memory views that combine multiple queries
 - [ ] [P3] Allow for schema-on-read approaches
 
+### 12. Integration & API
+
+- [ ] [P0] Implement example of using EngramDB with a simple agent using the pydantic.ai agentic framework
+- [ ] [P2] Implement Model Context Protocol (MCP) server for LLM integration
+- [ ] [P2] Create standardized API for RAG applications
+- [ ] [P3] Develop client libraries for common programming languages
+
+### 13. Business & Marketing
+
+- [ ] [P1] Create a pitch deck for EngramDB targeting VC investors (15 main slides + 5 technical annexes)
+- [ ] [P2] Develop comparison benchmarks against competing solutions
+- [ ] [P3] Create case study examples of real-world applications
+
 ### 11. Testing Infrastructure
 
 - [ ] [P2] Implement property-based testing for correctness
 - [ ] [P3] Add fuzz testing to find edge cases
 - [ ] [P1] Create a benchmark suite for performance regression testing
+- [ ] [P1] Add comprehensive benchmarks to compare with SQLite for standard database operations
+- [ ] [P2] Develop performance comparison metrics with SQLite for different workload patterns
 
 ## Implementation Phases
 
 ### Phase 1 (Short-term)
-- All [P0] tasks
+- All [P0] tasks:
+  - Implement HNSW algorithm for faster vector search
+  - Add read/write locks at different granularity levels
+  - Implement example using EngramDB with pydantic.ai agentic framework
 - Critical [P1] tasks:
   - Transaction support (without isolation levels)
   - Read/write concurrency
-  - HNSW vector indexing
+  - Hybrid vector indexing
+  - Custom query language for memory retrieval
 
 ### Phase 2 (Mid-term)
 - Remaining [P1] tasks
@@ -187,3 +234,6 @@ db.apply_migration(migration)?;
 
 - [x] [P0] Create initial in-memory storage engine (2023-04-05)
 - [x] [P0] Implement basic file storage persistence (2023-04-05)
+- [x] [P1] Implement basic graph connections between memory nodes (2023-04-05)
+- [x] [P1] Implement PyO3 bindings for core EngramDB functionality (2025-04-01)
+- [x] [P1] Create Pythonic wrapper classes for MemoryNode and Database (2025-04-01)
