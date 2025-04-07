@@ -397,4 +397,104 @@ if __name__ == "__main__":
     numpy_integration_example()
 ```
 
+## Text Embeddings and Semantic Search
+
+This example demonstrates how to use EngramDB's built-in embedding functionality to create memory nodes from text and perform semantic search.
+
+```python
+import engramdb
+from engramdb import Database, MemoryNode, EmbeddingService, EmbeddingModelType
+
+def text_embeddings_example():
+    # Create a database for our examples
+    db = Database.in_memory()
+    print("Created in-memory database")
+    
+    # You can choose from multiple embedding models:
+    # 1. Default model (E5 Multilingual Large Instruct)
+    default_service = EmbeddingService.default()
+    print(f"Default embedding service initialized (dimensions: {default_service.dimensions()})")
+    
+    # 2. Specific model types
+    # E5 Multilingual (standard)
+    e5_service = EmbeddingService.with_model_type(EmbeddingModelType.E5)
+    print(f"E5 embedding service initialized (dimensions: {e5_service.dimensions()})")
+    
+    # GTE Modern BERT Base
+    gte_service = EmbeddingService.with_model_type(EmbeddingModelType.GTE)
+    print(f"GTE embedding service initialized (dimensions: {gte_service.dimensions()})")
+    
+    # Jina Embeddings V3
+    jina_service = EmbeddingService.with_model_type(EmbeddingModelType.JINA)
+    print(f"Jina embedding service initialized (dimensions: {jina_service.dimensions()})")
+    
+    # 3. Or specify a custom model by name
+    # custom_service = EmbeddingService.with_model("sentence-transformers/all-MiniLM-L6-v2")
+    
+    # For this example, we'll use the default model
+    embedding_service = default_service
+    
+    # Create memory nodes from text
+    texts = [
+        "Artificial intelligence is transforming how we interact with technology",
+        "Machine learning algorithms can identify patterns in large datasets",
+        "Natural language processing enables computers to understand human speech",
+        "Computer vision systems can recognize objects in images and videos",
+        "Reinforcement learning helps AI agents learn through trial and error",
+        "Quantum computing may accelerate certain AI algorithms exponentially"
+    ]
+    
+    # Store all texts as memories
+    print("\nCreating memories from text...")
+    memory_ids = []
+    for i, text in enumerate(texts):
+        # The create_memory_from_text method handles everything:
+        # 1. Converts text to embeddings
+        # 2. Creates a memory node with those embeddings
+        # 3. Stores the text in the 'content' attribute
+        # 4. Saves the memory to the database
+        memory_id = db.create_memory_from_text(
+            text=text,
+            embedding_service=embedding_service,
+            category="AI concepts",
+            title=f"AI Concept {i+1}"
+        )
+        memory_ids.append(memory_id)
+        print(f"Created memory {i+1}: ID {memory_id}")
+    
+    # Demonstrate semantic search
+    print("\nPerforming semantic searches...")
+    
+    # Create query embeddings
+    queries = [
+        "How is AI changing our technology interactions?",
+        "Finding patterns in data",
+        "Understanding human language",
+        "Recognizing objects in pictures",
+        "Learning through experimentation",
+        "Advanced computing methods"
+    ]
+    
+    for i, query in enumerate(queries):
+        print(f"\nQuery: '{query}'")
+        
+        # Generate embeddings for the query
+        query_embedding = embedding_service.generate_for_query(query)
+        
+        # Search for similar memories
+        results = db.search_similar(query_embedding, limit=2, threshold=0.0)
+        
+        # Display results
+        print(f"Found {len(results)} results:")
+        for j, (memory_id, similarity) in enumerate(results):
+            # Load the memory to get its content
+            memory = db.load(memory_id)
+            content = memory.get_attribute("content")
+            print(f"  Result {j+1}: (similarity: {similarity:.4f})")
+            print(f"    Content: '{content}'")
+
+if __name__ == "__main__":
+    text_embeddings_example()
+```
+
 These examples demonstrate the core functionality of EngramDB in Python applications. You can combine these patterns to build more complex applications that leverage the full power of the database.

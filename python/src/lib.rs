@@ -7,12 +7,14 @@ use engramdb::{
     Database as EngramDbDatabase,
     database::ConnectionInfo as EngramDbConnectionInfo,
     RelationshipType as EngramDbRelationshipType,
+    #[cfg(feature = "embeddings")]
+    EmbeddingService as EngramDbEmbeddingService,
 };
 use engramdb::core::AttributeValue;
 use std::path::PathBuf;
 
 // Import the sample dataset module
-#[path = "../../examples/sample_dataset.rs"]
+#[path = "../../examples/rust/sample_dataset.rs"]
 mod sample_dataset;
 
 /// Simple function to test that the Python binding works
@@ -34,6 +36,15 @@ impl MemoryNode {
     fn new(embeddings: Vec<f32>) -> Self {
         Self {
             inner: EngramDbMemoryNode::new(embeddings),
+        }
+    }
+    
+    #[cfg(feature = "embeddings")]
+    #[staticmethod]
+    fn from_text(text: &str, embedding_service: &EmbeddingService, category: Option<&str>) -> PyResult<Self> {
+        match EngramDbMemoryNode::from_text(text, &embedding_service.inner, category) {
+            Ok(node) => Ok(Self { inner: node }),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to create memory from text: {}", e))),
         }
     }
 
@@ -111,6 +122,12 @@ struct Database {
     inner: EngramDbDatabase,
 }
 
+#[cfg(feature = "embeddings")]
+#[pyclass]
+struct EmbeddingService {
+    inner: EngramDbEmbeddingService,
+}
+
 #[pymethods]
 impl Database {
     /// Create a new in-memory database
@@ -165,6 +182,31 @@ impl Database {
         match self.inner.list_all() {
             Ok(ids) => Ok(ids.into_iter().map(|id| id.to_string()).collect()),
             Err(e) => Err(PyValueError::new_err(format!("Failed to list nodes: {}", e)))
+        }
+    }
+    
+    #[cfg(feature = "embeddings")]
+    fn create_memory_from_text(
+        &mut self, 
+        text: &str, 
+        embedding_service: &EmbeddingService, 
+        category: Option<&str>, 
+        title: Option<&str>,
+    ) -> PyResult<String> {
+        // Create attribute dictionary if title is provided
+        let mut attributes = std::collections::HashMap::new();
+        if let Some(t) = title {
+            attributes.insert("title".to_string(), AttributeValue::String(t.to_string()));
+        }
+        
+        match self.inner.create_memory_from_text(
+            text,
+            &embedding_service.inner,
+            category,
+            if attributes.is_empty() { None } else { Some(&attributes) },
+        ) {
+            Ok(id) => Ok(id.to_string()),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to create memory from text: {}", e))),
         }
     }
 
@@ -296,6 +338,90 @@ impl From<RelationshipType> for EngramDbRelationshipType {
     }
 }
 
+#[cfg(feature = "embeddings")]
+#[pyclass]
+enum EmbeddingModelType {
+    E5 = 0,
+    GTE = 1,
+    JINA = 2,
+    CUSTOM = 3,
+}
+
+#[cfg(feature = "embeddings")]
+impl From<EmbeddingModelType> for engramdb::embeddings::EmbeddingModel {
+    fn from(model_type: EmbeddingModelType) -> Self {
+        match model_type {
+            EmbeddingModelType::E5 => engramdb::embeddings::EmbeddingModel::E5MultilingualLargeInstruct,
+            EmbeddingModelType::GTE => engramdb::embeddings::EmbeddingModel::GteModernBertBase,
+            EmbeddingModelType::JINA => engramdb::embeddings::EmbeddingModel::JinaEmbeddingsV3,
+            EmbeddingModelType::CUSTOM => engramdb::embeddings::EmbeddingModel::Custom,
+        }
+    }
+}
+
+#[cfg(feature = "embeddings")]
+#[pymethods]
+impl EmbeddingService {
+    /// Create a new embedding service with default configuration
+    #[staticmethod]
+    fn default() -> Self {
+        Self {
+            inner: EngramDbEmbeddingService::default(),
+        }
+    }
+    
+    /// Create a new embedding service using a mock provider
+    #[staticmethod]
+    fn mock(dimensions: usize) -> Self {
+        Self {
+            inner: EngramDbEmbeddingService::new_mock(dimensions),
+        }
+    }
+    
+    /// Create a new embedding service using a model provider with a custom model name
+    #[staticmethod]
+    fn with_model(model_name: Option<&str>) -> Self {
+        Self {
+            inner: EngramDbEmbeddingService::new_with_model(model_name),
+        }
+    }
+    
+    /// Create a new embedding service using a specific pre-defined model type
+    #[staticmethod]
+    fn with_model_type(model_type: EmbeddingModelType) -> Self {
+        let rust_model_type = engramdb::embeddings::EmbeddingModel::from(model_type);
+        Self {
+            inner: EngramDbEmbeddingService::with_model_type(rust_model_type),
+        }
+    }
+    
+    /// Get the dimensions of the embeddings
+    fn dimensions(&self) -> usize {
+        self.inner.dimensions()
+    }
+    
+    /// Generate embeddings for a document
+    fn generate_for_document(&self, text: &str, category: Option<&str>) -> PyResult<Vec<f32>> {
+        match self.inner.generate_for_document(text, category) {
+            Ok(embeddings) => Ok(embeddings),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to generate embeddings: {}", e))),
+        }
+    }
+    
+    /// Generate embeddings for a query
+    fn generate_for_query(&self, text: &str) -> PyResult<Vec<f32>> {
+        match self.inner.generate_for_query(text) {
+            Ok(embeddings) => Ok(embeddings),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to generate embeddings: {}", e))),
+        }
+    }
+    
+    /// Generate random embeddings
+    fn generate_random(&self) -> Vec<f32> {
+        self.inner.generate_random()
+    }
+}
+
 /// Load a sample dataset with an AI Coding Agent bug fixing workflow
 #[pyfunction]
 fn load_sample_dataset(db: &mut Database) -> PyResult<Vec<String>> {
@@ -323,5 +449,12 @@ fn engramdb_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MemoryNode>()?;
     m.add_class::<Database>()?;
     m.add_class::<RelationshipType>()?;
+    
+    #[cfg(feature = "embeddings")]
+    {
+        m.add_class::<EmbeddingService>()?;
+        m.add_class::<EmbeddingModelType>()?;
+    }
+    
     Ok(())
 }

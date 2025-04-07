@@ -24,6 +24,15 @@ Vector embeddings are numerical representations of semantic content. In EngramDB
 
 The vector index maintains these embeddings and provides efficient similarity search using cosine similarity.
 
+EngramDB now includes built-in support for generating embeddings directly from text using machine learning models. This means you can:
+
+- Create memory nodes directly from text content
+- Generate embeddings for semantic search queries
+- Utilize state-of-the-art embedding models
+- Fall back to deterministic mock embeddings when ML dependencies aren't available
+
+See the [Embeddings](/advanced-topics/embeddings) documentation for more details.
+
 ## Attributes
 
 Attributes are flexible key-value pairs associated with a memory node. They can store various types of data:

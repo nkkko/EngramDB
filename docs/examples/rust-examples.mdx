@@ -444,4 +444,125 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
+## Text Embeddings and Semantic Search
+
+This example demonstrates how to use EngramDB's built-in embedding functionality to create memory nodes from text and perform semantic search.
+
+```rust
+use engramdb::{Database, MemoryNode};
+use engramdb::core::AttributeValue;
+use engramdb::embeddings::{EmbeddingService, EmbeddingModel};
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create a database for our examples
+    let mut db = Database::in_memory();
+    println!("Created in-memory database");
+    
+    // You can choose from multiple embedding models:
+    
+    // 1. Default model (E5 Multilingual Large Instruct)
+    let default_service = EmbeddingService::default();
+    println!("Default embedding service initialized (dimensions: {})", default_service.dimensions());
+    
+    // 2. Specific model types
+    // E5 Multilingual (standard)
+    let e5_service = EmbeddingService::with_model_type(EmbeddingModel::E5MultilingualLargeInstruct);
+    println!("E5 embedding service initialized (dimensions: {})", e5_service.dimensions());
+    
+    // GTE Modern BERT Base
+    let gte_service = EmbeddingService::with_model_type(EmbeddingModel::GteModernBertBase);
+    println!("GTE embedding service initialized (dimensions: {})", gte_service.dimensions());
+    
+    // Jina Embeddings V3
+    let jina_service = EmbeddingService::with_model_type(EmbeddingModel::JinaEmbeddingsV3);
+    println!("Jina embedding service initialized (dimensions: {})", jina_service.dimensions());
+    
+    // 3. Or specify a custom model by name
+    // let custom_service = EmbeddingService::new_with_model(Some("sentence-transformers/all-MiniLM-L6-v2"));
+    
+    // For this example, we'll use the default model
+    let embedding_service = default_service;
+    
+    // Create memory nodes from text
+    let texts = vec![
+        "Artificial intelligence is transforming how we interact with technology",
+        "Machine learning algorithms can identify patterns in large datasets",
+        "Natural language processing enables computers to understand human speech",
+        "Computer vision systems can recognize objects in images and videos",
+        "Reinforcement learning helps AI agents learn through trial and error",
+        "Quantum computing may accelerate certain AI algorithms exponentially"
+    ];
+    
+    // Store all texts as memories
+    println!("\nCreating memories from text...");
+    let mut memory_ids = Vec::new();
+    
+    for (i, text) in texts.iter().enumerate() {
+        // The create_memory_from_text method handles everything:
+        // 1. Converts text to embeddings
+        // 2. Creates a memory node with those embeddings
+        // 3. Stores the text in the 'content' attribute
+        // 4. Saves the memory to the database
+        
+        let memory_id = db.create_memory_from_text(
+            text,
+            &embedding_service,
+            Some("AI concepts"),
+            Some({
+                let mut attributes = std::collections::HashMap::new();
+                attributes.insert(
+                    "title".to_string(),
+                    AttributeValue::String(format!("AI Concept {}", i+1))
+                );
+                attributes
+            })
+        )?;
+        
+        memory_ids.push(memory_id);
+        println!("Created memory {}: ID {}", i+1, memory_id);
+    }
+    
+    // Demonstrate semantic search
+    println!("\nPerforming semantic searches...");
+    
+    // Create query embeddings
+    let queries = vec![
+        "How is AI changing our technology interactions?",
+        "Finding patterns in data",
+        "Understanding human language",
+        "Recognizing objects in pictures",
+        "Learning through experimentation",
+        "Advanced computing methods"
+    ];
+    
+    for (i, query) in queries.iter().enumerate() {
+        println!("\nQuery: '{}'", query);
+        
+        // Generate embeddings for the query
+        let query_embedding = embedding_service.generate_for_query(query)?;
+        
+        // Search for similar memories
+        let results = db.search_similar(&query_embedding, 2, 0.0)?;
+        
+        // Display results
+        println!("Found {} results:", results.len());
+        for (j, (memory_id, similarity)) in results.iter().enumerate() {
+            // Load the memory to get its content
+            let memory = db.load(*memory_id)?;
+            
+            let content = match memory.get_attribute("content") {
+                Some(AttributeValue::String(content)) => content,
+                _ => "No content available",
+            };
+            
+            println!("  Result {}: (similarity: {:.4})", j+1, similarity);
+            println!("    Content: '{}'", content);
+        }
+    }
+    
+    Ok(())
+}
+```
+
 These examples demonstrate the core functionality of EngramDB in Rust applications. You can combine these patterns to build more complex applications that leverage the full power of the database.

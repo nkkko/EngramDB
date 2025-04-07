@@ -59,6 +59,55 @@ impl MemoryNode {
             access_patterns: AccessHistory::new(),
         }
     }
+    
+    /// Creates a new memory node from text content using the provided embedding service
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - The text content to encode into embeddings
+    /// * `embedding_service` - The embedding service to use
+    /// * `category` - Optional category for the content
+    ///
+    /// # Returns
+    ///
+    /// A new MemoryNode with embeddings generated from the text
+    #[cfg(feature = "embeddings")]
+    pub fn from_text(
+        text: &str,
+        embedding_service: &crate::embeddings::EmbeddingService,
+        category: Option<&str>,
+    ) -> Result<Self, crate::embeddings::EmbeddingError> {
+        // Generate embeddings for the text
+        let embeddings = embedding_service.generate_for_document(text, category)?;
+        
+        // Create the memory node
+        let mut node = Self::new(embeddings);
+        
+        // Store the text content as an attribute
+        node.set_attribute("content".to_string(), AttributeValue::String(text.to_string()));
+        
+        // Store the category if provided
+        if let Some(cat) = category {
+            node.set_attribute("category".to_string(), AttributeValue::String(cat.to_string()));
+        }
+        
+        Ok(node)
+    }
+    
+    /// Creates a new memory node with random embeddings (for testing)
+    ///
+    /// # Arguments
+    ///
+    /// * `dimensions` - The dimensionality of the random embeddings
+    ///
+    /// # Returns
+    ///
+    /// A new MemoryNode with random embeddings
+    #[cfg(feature = "embeddings")]
+    pub fn with_random_embeddings(dimensions: usize) -> Self {
+        use crate::embeddings::mock::generate_random_embedding;
+        Self::new(generate_random_embedding(dimensions))
+    }
 
     /// Test-only method to create a node with a specific ID and timestamp
     /// This method should only be used in tests

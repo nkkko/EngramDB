@@ -65,7 +65,8 @@
         "pages": [
           "advanced-topics/temporal-layers",
           "advanced-topics/connections",
-          "advanced-topics/storage-engines"
+          "advanced-topics/storage-engines",
+          "advanced-topics/embeddings"
         ]
       },
       {

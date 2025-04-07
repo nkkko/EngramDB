@@ -6,6 +6,7 @@
 
 pub mod core;
 pub mod database;
+pub mod embeddings;
 pub mod query;
 pub mod storage;
 pub mod utils;
@@ -16,6 +17,7 @@ pub use crate::core::connection::RelationshipType;
 pub use crate::database::Database;
 pub use crate::database::DatabaseConfig;
 pub use crate::database::StorageType;
+pub use crate::embeddings::EmbeddingService;
 pub use crate::query::QueryBuilder;
 pub use crate::storage::StorageEngine;
 

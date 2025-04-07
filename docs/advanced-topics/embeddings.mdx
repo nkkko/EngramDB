@@ -1,0 +1,265 @@
+# Embeddings in EngramDB
+
+EngramDB now includes native support for generating vector embeddings from text. This feature makes it easy to create semantic memory nodes without needing to implement external embedding generation logic.
+
+## Getting Started with Embeddings
+
+### Basic Usage
+
+The embedding functionality in EngramDB is centered around the `EmbeddingService`, which provides methods to convert text into vector embeddings:
+
+```rust
+use engramdb::{Database, EmbeddingService};
+
+// Create the embedding service
+let embedding_service = EmbeddingService::default();
+
+// Create a database
+let mut db = Database::in_memory();
+
+// Create a memory from text
+let text = "Artificial intelligence is transforming how we interact with technology";
+let memory_id = db.create_memory_from_text(
+    text,
+    &embedding_service,
+    Some("AI concepts"),
+    None,
+)?;
+```
+
+### Python Usage
+
+Embeddings are also available in the Python API:
+
+```python
+from engramdb_py import Database, EmbeddingService
+
+# Create the embedding service
+embedding_service = EmbeddingService.default()
+
+# Create a database
+db = Database.in_memory()
+
+# Create a memory from text
+text = "Artificial intelligence is transforming how we interact with technology"
+memory_id = db.create_memory_from_text(
+    text=text,
+    embedding_service=embedding_service,
+    category="AI concepts",
+    title="AI Introduction"
+)
+```
+
+## Embedding Services
+
+EngramDB provides multiple ways to generate embeddings:
+
+### Default Service
+
+The default embedding service will attempt to use model-based embeddings if available, and fall back to deterministic mock embeddings if not:
+
+```rust
+let embedding_service = EmbeddingService::default();
+```
+
+### Model-Based Embeddings
+
+You can explicitly request model-based embeddings, specifying the model to use:
+
+```rust
+// Use a specific model
+let embedding_service = EmbeddingService::new_with_model(
+    Some("intfloat/multilingual-e5-large-instruct")
+);
+```
+
+EngramDB uses the E5 family of embedding models by default, which have excellent performance for semantic search tasks.
+
+### Mock Embeddings
+
+For testing or when ML dependencies aren't available, you can use mock embeddings:
+
+```rust
+// Create mock embeddings with 384 dimensions
+let embedding_service = EmbeddingService::new_mock(384);
+```
+
+## Creating Memory Nodes from Text
+
+### Using the Database API
+
+The simplest way to create memory nodes from text is to use the Database API:
+
+```rust
+// Create a memory node and save it to the database
+let memory_id = db.create_memory_from_text(
+    "This is the text content to embed",
+    &embedding_service,
+    Some("category"),
+    Some(&attributes),
+)?;
+```
+
+### Using the MemoryNode API
+
+You can also create a memory node directly from text:
+
+```rust
+// Create a memory node
+let memory_node = MemoryNode::from_text(
+    "This is the text content to embed",
+    &embedding_service,
+    Some("category"),
+)?;
+
+// Save it to the database
+let memory_id = db.save(&memory_node)?;
+```
+
+## Semantic Search
+
+Once you have memories created from text, you can perform semantic searches:
+
+```rust
+// Generate embeddings for a query
+let query = "How does AI change technology?";
+let query_embedding = embedding_service.generate_for_query(query)?;
+
+// Search for similar memories
+let results = db.search_similar(&query_embedding, 5, 0.7, None, None)?;
+
+// Process results
+for (memory_id, similarity) in results {
+    let memory = db.load(memory_id)?;
+    println!("Similarity: {}, Content: {}", 
+        similarity, 
+        memory.get_attribute("content")
+            .and_then(|a| if let AttributeValue::String(s) = a { Some(s) } else { None })
+            .unwrap_or("No content")
+    );
+}
+```
+
+## Configuration and Options
+
+### Document vs. Query Embeddings
+
+EngramDB distinguishes between document and query embeddings:
+
+```rust
+// Generate embeddings for storing a document
+let doc_embeddings = embedding_service.generate_for_document(
+    "Document text", 
+    Some("category")
+)?;
+
+// Generate embeddings for a search query
+let query_embeddings = embedding_service.generate_for_query(
+    "Search query"
+)?;
+```
+
+This distinction follows best practices for asymmetric semantic search.
+
+### Dimensions
+
+You can check the dimensions of the embeddings:
+
+```rust
+let dimensions = embedding_service.dimensions();
+println!("Embedding dimensions: {}", dimensions);
+```
+
+The default model produces 384-dimensional embeddings.
+
+## Supported Embedding Models
+
+EngramDB supports multiple embedding models that you can choose from:
+
+### E5 Multilingual Large Instruct (Default)
+
+```rust
+// Rust
+let service = EmbeddingService::with_model_type(EmbeddingModel::E5MultilingualLargeInstruct);
+```
+
+```python
+# Python
+service = EmbeddingService.with_model_type(EmbeddingModelType.E5)
+```
+
+The `intfloat/multilingual-e5-large-instruct` model provides:
+- High-quality semantic embeddings (1024 dimensions)
+- Support for 100+ languages
+- Instruction-based embedding generation
+- Excellent performance on retrieval tasks
+
+### GTE Modern BERT Base
+
+```rust
+// Rust
+let service = EmbeddingService::with_model_type(EmbeddingModel::GteModernBertBase);
+```
+
+```python
+# Python
+service = EmbeddingService.with_model_type(EmbeddingModelType.GTE)
+```
+
+The `Alibaba-NLP/gte-modernbert-base` model provides:
+- Modern semantics updated with recent data (768 dimensions)
+- Strong performance on semantic search and similarity tasks
+- Efficient inference with a base-sized model
+
+### Jina Embeddings V3
+
+```rust
+// Rust
+let service = EmbeddingService::with_model_type(EmbeddingModel::JinaEmbeddingsV3);
+```
+
+```python
+# Python
+service = EmbeddingService.with_model_type(EmbeddingModelType.JINA)
+```
+
+The `jinaai/jina-embeddings-v3` model provides:
+- State-of-the-art performance on various NLP tasks (768 dimensions)
+- Good cross-lingual capabilities
+- Well-optimized for retrieval tasks
+
+### Custom Models
+
+You can also specify a custom model by providing the model name:
+
+```rust
+// Rust
+let service = EmbeddingService::new_with_model(Some("sentence-transformers/all-MiniLM-L6-v2"));
+```
+
+```python
+# Python
+service = EmbeddingService.with_model("sentence-transformers/all-MiniLM-L6-v2")
+```
+
+EngramDB will automatically determine the dimensions and other properties of the model.
+
+## Dependencies and Features
+
+The embedding functionality is optional and protected by feature flags:
+
+- `embeddings`: Basic embedding support with mock providers
+- `python`: Python support for embeddings (requires PyO3)
+
+To use model-based embeddings, you need the following Python packages:
+- `torch`
+- `transformers`
+
+If these dependencies are not available, EngramDB will automatically fall back to mock embeddings.
+
+## Examples
+
+For complete examples of using embeddings with EngramDB, see:
+
+- Rust: [examples/rust/text_embeddings.rs](https://github.com/your-username/engramdb/blob/main/examples/rust/text_embeddings.rs)
+- Python: [examples/python/text_embeddings.py](https://github.com/your-username/engramdb/blob/main/examples/python/text_embeddings.py)

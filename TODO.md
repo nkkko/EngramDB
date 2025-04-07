@@ -194,6 +194,8 @@ db.save(&engram)?;
 - [ ] [P2] Implement Model Context Protocol (MCP) server for LLM integration
 - [ ] [P2] Create standardized API for RAG applications
 - [ ] [P3] Develop client libraries for common programming languages
+- [ ] [P3] Implement multimodal memory support (images, audio, video)
+- [ ] [P1] Add inter-agentic collaboration features for multi-agent orchestration
 
 ### 13. Business & Marketing
 
@@ -209,6 +211,20 @@ db.save(&engram)?;
 - [ ] [P1] Add comprehensive benchmarks to compare with SQLite for standard database operations
 - [ ] [P2] Develop performance comparison metrics with SQLite for different workload patterns
 
+### 14. CLI and Interface Improvements
+
+- [x] [P1] Create basic CLI for EngramDB database management (2025-04-07)
+- [ ] [P1] Improve storage engine error handling and robustness
+- [ ] [P2] Standardize types across the API (e.g., consistent use of f32/f64)
+- [ ] [P2] Enhance connection model to support bidirectional relationships more naturally
+- [ ] [P2] Add support for human-readable aliases or labels for memory nodes
+- [ ] [P1] Extend query capabilities with filtering by multiple attributes
+- [ ] [P2] Add optional schema validation for attributes
+- [ ] [P2] Standardize behaviors across different storage engines
+- [ ] [P1] Add support for bulk operations (import/export)
+- [ ] [P2] Implement helper functions for generating embeddings from text
+- [ ] [P3] Create a web interface for database management
+
 ## Implementation Phases
 
 ### Phase 1 (Short-term)
@@ -221,14 +237,24 @@ db.save(&engram)?;
   - Read/write concurrency
   - Hybrid vector indexing
   - Custom query language for memory retrieval
+  - Improve storage engine error handling
+  - Extend query capabilities
+  - Add support for bulk operations
 
 ### Phase 2 (Mid-term)
 - Remaining [P1] tasks
 - [P2] tasks for query optimization and performance
+- Standardize types across API
+- Enhance connection model
+- Add support for human-readable aliases
+- Implement optional schema validation
+- Standardize behaviors across storage engines
+- Implement helper functions for embeddings
 
 ### Phase 3 (Long-term)
 - Remaining [P2] tasks
 - [P3] tasks as needed
+- Create a web interface for database management
 
 ## Completed Items
 
@@ -237,3 +263,4 @@ db.save(&engram)?;
 - [x] [P1] Implement basic graph connections between memory nodes (2023-04-05)
 - [x] [P1] Implement PyO3 bindings for core EngramDB functionality (2025-04-01)
 - [x] [P1] Create Pythonic wrapper classes for MemoryNode and Database (2025-04-01)
+- [x] [P1] Create basic CLI for EngramDB database management (2025-04-07)

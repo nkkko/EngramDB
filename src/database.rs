@@ -357,6 +357,43 @@ impl Database {
         Ok(self.list_all()?.is_empty())
     }
     
+    /// Creates a memory node from text and saves it to the database
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - The text content to create a memory from
+    /// * `embedding_service` - The embedding service to use
+    /// * `category` - Optional category for the content
+    /// * `attributes` - Optional additional attributes to set
+    ///
+    /// # Returns
+    ///
+    /// The ID of the newly created memory node
+    #[cfg(feature = "embeddings")]
+    pub fn create_memory_from_text(
+        &mut self,
+        text: &str,
+        embedding_service: &crate::embeddings::EmbeddingService,
+        category: Option<&str>,
+        attributes: Option<&std::collections::HashMap<String, crate::core::AttributeValue>>,
+    ) -> Result<uuid::Uuid> {
+        // Create the memory node from text
+        let mut memory = match crate::core::MemoryNode::from_text(text, embedding_service, category) {
+            Ok(node) => node,
+            Err(e) => return Err(crate::error::EngramDbError::Other(format!("Failed to create memory from text: {}", e))),
+        };
+        
+        // Add any additional attributes
+        if let Some(attrs) = attributes {
+            for (key, value) in attrs {
+                memory.set_attribute(key.clone(), value.clone());
+            }
+        }
+        
+        // Save to database
+        self.save(&memory)
+    }
+    
     /// Creates a connection between two memory nodes
     ///
     /// # Arguments
