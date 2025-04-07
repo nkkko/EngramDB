@@ -46,5 +46,5 @@ For a more sophisticated example, check out the Flask website generator agent in
 
 ## Additional Resources
 
-- [EngramDB Documentation](https://github.com/engramdb/engramdb)
+- [EngramDB Documentation](https://engramdb.mintlify.app/)
 - [Rust Examples](../rust/)
