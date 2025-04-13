@@ -3,7 +3,7 @@
 //! This module provides functions to generate random embeddings
 //! when a real embedding model is not available.
 
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, SeedableRng};
 use super::core;
 
 /// Generate a random embedding vector with the specified dimensions

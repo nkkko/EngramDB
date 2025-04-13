@@ -11,19 +11,31 @@ The `Database` is the main interface for interacting with EngramDB. This documen
 
 ### `Database::in_memory()`
 
-Creates a new in-memory database (volatile, for testing and development).
+Creates a new in-memory database with linear vector search (volatile, for testing and development).
 
 **Returns:**
-- A new `Database` instance using memory storage
+- A new `Database` instance using memory storage and linear vector index
 
 **Example:**
 ```rust
 let mut db = Database::in_memory();
 ```
 
+### `Database::in_memory_with_hnsw()`
+
+Creates a new in-memory database with HNSW vector search for faster similarity queries.
+
+**Returns:**
+- A new `Database` instance using memory storage and HNSW vector index
+
+**Example:**
+```rust
+let mut db = Database::in_memory_with_hnsw();
+```
+
 ### `Database::file_based(dir)`
 
-Creates a file-based database at the specified directory (persistent).
+Creates a file-based database at the specified directory with linear vector search.
 
 **Parameters:**
 - `dir`: `&str` or `Path` - Path to the storage directory
@@ -34,6 +46,21 @@ Creates a file-based database at the specified directory (persistent).
 **Example:**
 ```rust
 let mut db = Database::file_based("./my_database")?;
+```
+
+### `Database::file_based_with_hnsw(dir)`
+
+Creates a file-based database at the specified directory with HNSW vector search.
+
+**Parameters:**
+- `dir`: `&str` or `Path` - Path to the storage directory
+
+**Returns:**
+- A new `Database` instance using file storage and HNSW vector index, or an error if initialization failed
+
+**Example:**
+```rust
+let mut db = Database::file_based_with_hnsw("./my_database")?;
 ```
 
 ### `Database::new(config)`
@@ -48,10 +75,21 @@ Creates a new database with the given configuration.
 
 **Example:**
 ```rust
+// Custom HNSW configuration
 let config = DatabaseConfig {
-    use_memory_storage: false,
-    storage_dir: Some("./my_database".to_string()),
+    storage_type: StorageType::Memory,
+    storage_path: None,
     cache_size: 100,
+    vector_index_config: VectorIndexConfig {
+        algorithm: VectorAlgorithm::HNSW,
+        hnsw: Some(HnswConfig {
+            m: 32,                  // More connections per node
+            ef_construction: 200,   // More neighbors during construction
+            ef: 50,                 // More candidates during search
+            level_multiplier: 1.0,
+            max_level: 16,
+        }),
+    },
 };
 
 let mut db = Database::new(config)?;
@@ -63,16 +101,41 @@ The `DatabaseConfig` struct provides configuration options for the database:
 
 ```rust
 pub struct DatabaseConfig {
-    pub use_memory_storage: bool,
-    pub storage_dir: Option<String>,
+    pub storage_type: StorageType,
+    pub storage_path: Option<String>,
     pub cache_size: usize,
+    pub vector_index_config: VectorIndexConfig,
 }
 ```
 
 **Fields:**
-- `use_memory_storage`: Whether to use in-memory storage (volatile) or file-based storage (persistent)
-- `storage_dir`: Directory path for file storage (ignored if using memory storage)
+- `storage_type`: The type of storage to use (`StorageType::Memory`, `StorageType::MultiFile`, or `StorageType::SingleFile`)
+- `storage_path`: Directory path for file storage (ignored if using memory storage)
 - `cache_size`: Size of the query result cache (0 to disable caching)
+- `vector_index_config`: Configuration for the vector index
+
+### StorageType
+
+```rust
+pub enum StorageType {
+    Memory,      // In-memory storage (volatile)
+    MultiFile,   // Multi-file storage (one file per node)
+    SingleFile,  // Single-file storage (all nodes in one file)
+}
+```
+
+### VectorIndexConfig
+
+```rust
+pub struct VectorIndexConfig {
+    pub algorithm: VectorAlgorithm,
+    pub hnsw: Option<HnswConfig>,
+}
+```
+
+**Fields:**
+- `algorithm`: The vector indexing algorithm to use (`VectorAlgorithm::Linear` or `VectorAlgorithm::HNSW`)
+- `hnsw`: Configuration for the HNSW algorithm (if used)
 
 ## Basic Operations
 

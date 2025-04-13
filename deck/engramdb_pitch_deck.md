@@ -416,10 +416,31 @@ results = db.query()\
   - AI Startups & Research Labs
   - Enterprise AI Teams
 
-- **Revenue Streams**
-  - EngramDB Cloud (future managed service)
-  - Enterprise Support & Services
-  - White-label & OEM partnerships
+---
+
+# EngramDB Cloud
+
+<div class="columns">
+<div>
+
+- **Managed Service Offering**
+  - Combine local + cloud strategically
+  - Long-term memory persistence
+  - Memory backup and restoration
+  - Multi-agent memory sharing capabilities
+  - Memory analytics and insights
+  - Pre-trained memory patterns
+  - Industry-specific memory models
+
+</div>
+<div>
+
+- **Must Haves**
+  - Advanced security and access controls
+  - High-availability clustering
+  - Priority support and consulting
+
+</div>
 
 ---
 

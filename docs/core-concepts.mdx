@@ -22,16 +22,23 @@ A memory node is identified by a unique UUID and includes metadata such as creat
 
 Vector embeddings are numerical representations of semantic content. In EngramDB, these embeddings enable similarity search, allowing you to find memories that are semantically related even if they don't share the same attributes.
 
-The vector index maintains these embeddings and provides efficient similarity search using cosine similarity.
+The vector index maintains these embeddings and provides efficient similarity search using cosine similarity. EngramDB now supports two vector index implementations:
 
-EngramDB now includes built-in support for generating embeddings directly from text using machine learning models. This means you can:
+- **Linear Index (default)**: Simple brute-force search, suitable for small datasets
+- **HNSW Index**: Fast approximate search using Hierarchical Navigable Small World graphs, suitable for large datasets
+
+EngramDB also includes built-in support for generating embeddings directly from text using machine learning models. This means you can:
 
 - Create memory nodes directly from text content
 - Generate embeddings for semantic search queries
-- Utilize state-of-the-art embedding models
+- Utilize state-of-the-art embedding models:
+  - E5 Multilingual Large Instruct (default)
+  - GTE Modern BERT Base
+  - Jina Embeddings V3
+  - Custom models
 - Fall back to deterministic mock embeddings when ML dependencies aren't available
 
-See the [Embeddings](/advanced-topics/embeddings) documentation for more details.
+See the [Embeddings](/advanced-topics/embeddings) documentation and [Vector Index API Reference](/api-reference/vector-index) for more details.
 
 ## Attributes
 

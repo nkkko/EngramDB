@@ -397,6 +397,95 @@ if __name__ == "__main__":
     numpy_integration_example()
 ```
 
+## Using HNSW for Fast Vector Search
+
+This example demonstrates how to use the HNSW vector index for faster similarity search.
+
+```python
+import engramdb
+import numpy as np
+import time
+
+def hnsw_search_example():
+    # Create a database with HNSW vector index
+    # Note: Database.with_hnsw() is a convenience method that 
+    # creates an in-memory database with HNSW vector index
+    db = engramdb.Database.in_memory_with_hnsw()
+    print("Created database with HNSW vector index")
+    
+    # Create some sample data
+    num_vectors = 10000
+    vector_dim = 128
+    
+    print(f"Adding {num_vectors} vectors of dimension {vector_dim}...")
+    
+    # Create and add random vectors
+    for i in range(num_vectors):
+        # Generate a random vector
+        vector = np.random.rand(vector_dim).astype(np.float32)
+        # Normalize the vector
+        vector = vector / np.linalg.norm(vector)
+        
+        # Create a memory node
+        memory = engramdb.MemoryNode(vector)
+        memory.set_attribute("index", i)
+        
+        # Save to database
+        db.save(memory)
+        
+        if i % 1000 == 0:
+            print(f"  Added {i} vectors")
+    
+    # Measure search performance
+    # Create a query vector
+    query = np.random.rand(vector_dim).astype(np.float32)
+    query = query / np.linalg.norm(query)
+    
+    # Perform the search and measure time
+    start_time = time.time()
+    results = db.search_similar(query, limit=10, threshold=0.0)
+    end_time = time.time()
+    
+    print(f"Search time: {(end_time - start_time) * 1000:.2f} ms")
+    print(f"Found {len(results)} results")
+    
+    # Display top results
+    for i, (memory_id, similarity) in enumerate(results[:5]):
+        memory = db.load(memory_id)
+        print(f"  Result {i+1}: index={memory.get_attribute('index')}, similarity={similarity:.4f}")
+    
+    # Compare with linear search
+    print("\nNow comparing with linear search:")
+    
+    # Create a database with linear search (default)
+    linear_db = engramdb.Database.in_memory()
+    
+    # Add the same vectors
+    print("Adding same vectors to linear index...")
+    for i in range(num_vectors):
+        vector = np.random.rand(vector_dim).astype(np.float32)
+        vector = vector / np.linalg.norm(vector)
+        memory = engramdb.MemoryNode(vector)
+        memory.set_attribute("index", i)
+        linear_db.save(memory)
+        
+        if i % 1000 == 0:
+            print(f"  Added {i} vectors")
+    
+    # Perform the search and measure time
+    start_time = time.time()
+    results = linear_db.search_similar(query, limit=10, threshold=0.0)
+    end_time = time.time()
+    
+    print(f"Linear search time: {(end_time - start_time) * 1000:.2f} ms")
+    print(f"Found {len(results)} results")
+    
+    print("\nHNSW vector search is much faster than linear search for large datasets!")
+
+if __name__ == "__main__":
+    hnsw_search_example()
+```
+
 ## Text Embeddings and Semantic Search
 
 This example demonstrates how to use EngramDB's built-in embedding functionality to create memory nodes from text and perform semantic search.

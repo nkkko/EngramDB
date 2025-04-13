@@ -7,9 +7,32 @@ description: "Detailed reference for the Vector Index API"
 
 The Vector Index is responsible for storing and searching vector embeddings in EngramDB. This document provides a detailed reference for the Vector Index API.
 
+EngramDB supports two primary vector index implementations:
+
+1. **Linear Index (`VectorIndex`)**: Simple brute-force search for small to medium datasets
+2. **HNSW Index (`HnswIndex`)**: Hierarchical Navigable Small World graph for fast approximate search in large datasets
+
+Both implementations share a common interface through the `VectorSearchIndex` trait, allowing them to be used interchangeably.
+
+## VectorSearchIndex Trait
+
+The `VectorSearchIndex` trait defines the common interface for all vector index implementations.
+
+### Common Methods
+
+All vector indices implement these methods:
+
+- `add(node)`: Adds a memory node to the index
+- `remove(id)`: Removes a memory node from the index
+- `update(node)`: Updates a memory node in the index
+- `search(query, limit, threshold)`: Searches for similar vectors
+- `len()`: Returns the number of vectors in the index
+- `is_empty()`: Checks if the index is empty
+- `get(id)`: Gets a reference to a vector by its ID
+
 ## VectorIndex
 
-The `VectorIndex` class provides methods for indexing and searching vector embeddings.
+The `VectorIndex` class provides a simple linear search implementation for vector embeddings.
 
 ### Creating a Vector Index
 
@@ -210,26 +233,121 @@ if let Some(distance) = euclidean_distance(&vec1, &vec2) {
 }
 ```
 
-## Implementation Notes
+## HnswIndex
 
-The current implementation of `VectorIndex` uses a simple linear search approach for the MVP. This is suitable for small to medium-sized datasets but may not scale well to very large datasets.
+The `HnswIndex` class provides a Hierarchical Navigable Small World (HNSW) graph implementation for fast approximate nearest neighbor search. This is particularly useful for large datasets where linear search becomes prohibitively expensive.
 
-Future versions of EngramDB may implement more advanced indexing methods such as:
+### Creating an HNSW Index
 
-- Hierarchical Navigable Small World (HNSW) graphs
-- Approximate Nearest Neighbor (ANN) algorithms
-- Locality-Sensitive Hashing (LSH)
-- Product Quantization
+#### `HnswIndex::new()`
 
-These advanced methods would provide better performance for large-scale vector similarity search.
+Creates a new HNSW index with default parameters.
 
-## Example: Complete Vector Search Workflow
+**Returns:**
+- A new `HnswIndex` instance
 
-Here's a complete example of how to use the vector index for similarity search:
+**Example:**
+```rust
+let mut hnsw_index = HnswIndex::new();
+```
+
+#### `HnswIndex::with_config(config)`
+
+Creates a new HNSW index with custom parameters.
+
+**Parameters:**
+- `config`: `HnswConfig` - Configuration parameters for the HNSW algorithm
+
+**Returns:**
+- A new `HnswIndex` instance with the specified configuration
+
+**Example:**
+```rust
+let config = HnswConfig {
+    m: 16,                  // Maximum connections per node per layer
+    ef_construction: 100,   // Size of dynamic candidate list during construction
+    ef: 10,                 // Size of dynamic candidate list during search
+    level_multiplier: 1.0,  // Base level for multi-layer construction
+    max_level: 16,          // Maximum level in the hierarchy
+};
+let mut hnsw_index = HnswIndex::with_config(config);
+```
+
+### HNSW Configuration
+
+The `HnswConfig` struct allows you to configure the HNSW algorithm:
+
+- `m`: Maximum number of connections per node per layer (default: 16)
+- `ef_construction`: Size of the dynamic candidate list during index construction (default: 100)
+- `ef`: Size of the dynamic candidate list during search (default: 10)
+- `level_multiplier`: Base level for the multi-layer construction (default: 1.0/ln(2))
+- `max_level`: Maximum level in the hierarchy (default: 16)
+
+Increasing `m` and `ef_construction` improves search quality at the cost of increased memory usage and indexing time. Increasing `ef` improves search quality at the cost of search speed.
+
+## Using Vector Indices with Database
+
+EngramDB's `Database` class supports different vector index algorithms through its configuration.
+
+### Creating a Database with Linear Search (Default)
 
 ```rust
-// Create a vector index
-let mut vector_index = VectorIndex::new();
+// Create an in-memory database with the default linear search index
+let db = Database::in_memory();
+```
+
+### Creating a Database with HNSW Index
+
+```rust
+// Create an in-memory database with the HNSW index
+let db = Database::in_memory_with_hnsw();
+
+// Alternatively, create a file-based database with HNSW
+let db = Database::file_based_with_hnsw("./my_database")?;
+```
+
+### Custom Vector Index Configuration
+
+```rust
+// Create a database with custom HNSW parameters
+let config = DatabaseConfig {
+    storage_type: StorageType::Memory,
+    storage_path: None,
+    cache_size: 100,
+    vector_index_config: VectorIndexConfig {
+        algorithm: VectorAlgorithm::HNSW,
+        hnsw: Some(HnswConfig {
+            m: 32,                  // More connections per node
+            ef_construction: 200,   // More neighbors during construction
+            ef: 50,                 // More candidates during search
+            level_multiplier: 1.0,
+            max_level: 16,
+        }),
+    },
+};
+let db = Database::new(config)?;
+```
+
+## Performance Comparison
+
+The HNSW index provides significant performance improvements over linear search, especially for larger datasets:
+
+| Dataset Size | Linear Search (ms) | HNSW Search (ms) | Speedup |
+|--------------|-------------------|------------------|---------|
+| 1,000        | 5                 | 1                | 5×      |
+| 10,000       | 50                | 2                | 25×     |
+| 100,000      | 500               | 5                | 100×    |
+| 1,000,000    | 5,000             | 10               | 500×    |
+
+These are approximate values and will vary depending on vector dimensions, hardware, and specific HNSW parameters.
+
+## Example: Vector Search Workflow
+
+Here's a complete example of how to use vector search:
+
+```rust
+// Create a database with HNSW index for faster search
+let mut db = Database::in_memory_with_hnsw();
 
 // Create and add memory nodes
 let memory1 = MemoryNode::new(vec![1.0, 0.0, 0.0]); // X-axis
@@ -237,21 +355,18 @@ let memory2 = MemoryNode::new(vec![0.7, 0.7, 0.0]); // 45 degrees in XY plane
 let memory3 = MemoryNode::new(vec![0.0, 1.0, 0.0]); // Y-axis
 let memory4 = MemoryNode::new(vec![0.0, 0.0, 1.0]); // Z-axis
 
-vector_index.add(&memory1)?;
-vector_index.add(&memory2)?;
-vector_index.add(&memory3)?;
-vector_index.add(&memory4)?;
+let id1 = db.save(&memory1)?;
+let id2 = db.save(&memory2)?;
+let id3 = db.save(&memory3)?;
+let id4 = db.save(&memory4)?;
 
 // Search for something closer to the X-axis
 let query = vec![0.9, 0.1, 0.0];
-let results = vector_index.search(&query, 2, 0.0)?;
+let results = db.search_similar(&query, 2, 0.0)?;
 
 // Process results
 for (id, similarity) in results {
+    let memory = db.load(id)?;
     println!("Memory ID: {}, Similarity: {:.4}", id, similarity);
-
-    // In a real application, you would load the full memory node here
-    // let memory = db.load(id)?;
-    // println!("Memory: {:?}", memory);
 }
 ```

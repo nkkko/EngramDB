@@ -1,0 +1,64 @@
+# EngramDB Python
+
+> EngramDB Python bindings for the specialized agent memory database system
+
+
+EngramDB is a specialized database designed for agent memory management. 
+It provides vector search, attribute-based filtering, and memory connections
+in a unified API. Use it to build systems that can effectively store and
+retrieve contextual information, particularly for AI agents.
+
+When using EngramDB, remember to:
+- Use vectors consistently (same dimensions)
+- Store structured attributes for faster filtering
+- Connect related memories using relationship types
+- Consider thread-safe operations for multi-agent systems
+
+
+
+## Docs
+
+- [README](python/README.md): Python bindings overview and basic usage
+- [Basic Usage Example](python/examples/basic_usage.py): Full example of managing an AI agent's memories
+- [Sample Data Usage](python/examples/sample_data_usage.py): How to use the sample data generator
+- [Thread Safety](python/examples/thread_safe_example.py): Thread-safe operations for multi-agent systems
+
+
+
+## Examples
+
+```python
+# Create an in-memory database
+db = engramdb.Database.in_memory()
+
+# Create a memory node with vector embeddings
+memory = engramdb.MemoryNode([0.1, 0.2, 0.3, 0.4])
+memory.set_attribute("title", "Important information")
+memory.set_attribute("importance", 0.8)
+
+# Save to database
+memory_id = db.save(memory)
+print(f"Saved memory with ID: {memory_id}")
+
+# Search for similar memories
+results = db.search_similar([0.15, 0.25, 0.35, 0.45], limit=5, threshold=0.7)
+for memory_id, score in results:
+    memory = db.load(memory_id)
+    print(f"Found similar memory: {memory.get_attribute('title')} (score: {score:.2f})")
+
+# Create connections between memories
+db.connect(memory_id1, memory_id2, "related_to", 0.9)
+
+# Query with filters
+attribute_filter = engramdb.AttributeFilter.greater_than("importance", 0.7)
+results = db.query().with_attribute_filter(attribute_filter).execute()
+```
+
+
+
+## Optional
+
+- [Contributing Guide](CONTRIBUTING.md): How to contribute to EngramDB
+- [Thread Safety Guide](python/docs/thread_safety.md): Detailed guide for thread-safe operations
+- [Advanced Queries](python/docs/advanced_queries.md): Complex query examples and patterns
+

@@ -31,14 +31,11 @@ memory.set_attribute("importance", 0.8)
 memory_id = db.save(memory)
 print(f"Saved memory with ID: {memory_id}")
 
-# Query the database
-results = db.query()\
-    .with_vector([0.15, 0.25, 0.35, 0.45])\
-    .execute()
-
-# Process results
-for node in results:
-    print(f"Found memory: {node.get_attribute('title')}")
+# Search for similar memories
+results = db.search_similar([0.15, 0.25, 0.35, 0.45], limit=5, threshold=0.7)
+for memory_id, score in results:
+    memory = db.load(memory_id)
+    print(f"Found similar memory: {memory.get_attribute('title')} (score: {score:.2f})")
 ```
 
 ### Persistent Storage
@@ -46,29 +43,6 @@ for node in results:
 ```python
 # Create a file-based database
 db = engramdb.Database.file_based("./my_database")
-
-# Initialize the database (loads existing memories)
-db.initialize()
-```
-
-### Advanced Queries
-
-```python
-# Create attribute filters
-importance_filter = engramdb.AttributeFilter.greater_than("importance", 0.7)
-category_filter = engramdb.AttributeFilter.equals("category", "work")
-
-# Create a temporal filter for recent memories
-time_filter = engramdb.TemporalFilter.within_last(days=7)
-
-# Execute combined query
-results = db.query()\
-    .with_vector([0.1, 0.3, 0.5, 0.1])\
-    .with_attribute_filter(importance_filter)\
-    .with_attribute_filter(category_filter)\
-    .with_temporal_filter(time_filter)\
-    .with_limit(10)\
-    .execute()
 ```
 
 ### Memory Connections (Graph Features)
@@ -89,9 +63,26 @@ memory2_id = db.save(memory2)
 db.connect(
     memory1_id,
     memory2_id,
-    relationship_type=engramdb.RelationshipType.ASSOCIATION,
-    strength=0.8
+    "related_to",
+    0.8
 )
+```
+
+### Thread Safety for Multi-Agent Systems
+
+For systems with multiple agents accessing the same database concurrently:
+
+```python
+# Create a thread-safe database
+db = engramdb.ThreadSafeDatabase.in_memory()
+
+# Operations are the same, but thread-safe
+memory = engramdb.MemoryNode([0.1, 0.2, 0.3, 0.4])
+memory_id = db.save(memory)
+
+# For connection pools in shared environments
+pool = engramdb.ThreadSafeDatabasePool.new("./shared_db")
+db_conn = pool.get_connection()
 ```
 
 ## API Reference
@@ -100,27 +91,45 @@ db.connect(
 
 - `Database.in_memory()` - Create an in-memory database
 - `Database.file_based(path)` - Create a file-based database
-- `Database.initialize()` - Initialize the database
 - `Database.save(memory)` - Save a memory node
 - `Database.load(id)` - Load a memory node by ID
 - `Database.delete(id)` - Delete a memory node
-- `Database.query()` - Create a query builder
+- `Database.search_similar(vector, limit, threshold)` - Search for similar memory nodes
+- `Database.connect(source_id, target_id, relationship_type, strength)` - Create connection between nodes
 
 ### MemoryNode
 
 - `MemoryNode(embeddings)` - Create a new memory node
 - `MemoryNode.id` - Get the node ID
-- `MemoryNode.embeddings` - Get/set the vector embeddings
 - `MemoryNode.set_attribute(key, value)` - Set an attribute
 - `MemoryNode.get_attribute(key)` - Get an attribute
+- `MemoryNode.get_embeddings()` - Get the vector embeddings
 
-### QueryBuilder
+### ThreadSafeDatabase
 
-- `QueryBuilder.with_vector(vector)` - Add vector similarity search
-- `QueryBuilder.with_attribute_filter(filter)` - Add attribute filter
-- `QueryBuilder.with_temporal_filter(filter)` - Add temporal filter
-- `QueryBuilder.with_limit(limit)` - Set maximum results
-- `QueryBuilder.execute()` - Execute the query
+- `ThreadSafeDatabase.in_memory()` - Create an in-memory thread-safe database
+- `ThreadSafeDatabase.file_based(path)` - Create a file-based thread-safe database
+- `ThreadSafeDatabase.in_memory_with_hnsw()` - Create database with HNSW index
+
+### ThreadSafeDatabasePool
+
+- `ThreadSafeDatabasePool.new(path)` - Create a database connection pool
+- `ThreadSafeDatabasePool.get_connection()` - Get a connection from the pool
+
+## LLM Context Generation
+
+This package includes tools to generate XML context files for LLMs:
+
+```bash
+# Generate basic llms.txt file
+python scripts/build_llms_txt.py
+
+# Generate full context with examples
+python scripts/build_llms_txt.py --full
+
+# Convert to XML context format
+python scripts/llms_txt2ctx.py llms-full-engramdb.txt --optional > llms-full-engramdb.md
+```
 
 ## Development
 
@@ -134,6 +143,10 @@ cd engramdb/python
 pip install maturin
 maturin develop
 ```
+
+### Cross-Platform Building
+
+See [PUBLISHING.md](PUBLISHING.md) for detailed instructions on building wheels for different platforms.
 
 ### Running Tests
 

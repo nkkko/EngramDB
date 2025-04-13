@@ -1,0 +1,19 @@
+{
+    "mcpServers": {
+        "engramdb-server": {
+            "command": "/Users/nikola/.local/bin/uv",
+            "args": [
+                "--directory",
+                "/Users/nikola/dev/engramdb/examples/engramdb_mcp_server",
+                "run",
+                "server.py"
+            ],
+            "env": {
+                "PYTHONUNBUFFERED": "1",
+                "ENGRAMDB_PATH": "/Users/nikola/dev/engramdb/examples/engramdb_mcp_server/engramdb_data",
+                "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/nikola/.local/bin"
+            },
+            "logFile": "~/Library/Logs/Claude/mcp-server-engramdb.log"
+        }
+    }
+}

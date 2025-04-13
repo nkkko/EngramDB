@@ -3,7 +3,7 @@ name = "engramdb-py"
 version = "0.1.0"
 edition = "2021"
 description = "Python bindings for EngramDB database"
-authors = ["Author <author@example.com>"]
+authors = ["Niko <engramdb@disequi.com>"]
 license = "MIT"
 
 [lib]

@@ -7,7 +7,7 @@ use crate::core::{Connection, MemoryNode};
 use crate::RelationshipType;
 use crate::query::QueryBuilder;
 use crate::storage::{FileStorageEngine, MemoryStorageEngine, SingleFileStorageEngine, StorageEngine};
-use crate::vector::VectorIndex;
+use crate::vector::{VectorIndex, VectorSearchIndex, VectorIndexConfig, VectorAlgorithm, HnswConfig, create_vector_index};
 use crate::error::EngramDbError;
 use crate::Result;
 
@@ -52,6 +52,9 @@ pub struct DatabaseConfig {
     
     /// Size of the query result cache (0 to disable caching)
     pub cache_size: usize,
+    
+    /// Vector index configuration
+    pub vector_index_config: VectorIndexConfig,
 }
 
 impl Default for DatabaseConfig {
@@ -60,6 +63,7 @@ impl Default for DatabaseConfig {
             storage_type: StorageType::MultiFile,
             storage_path: Some("./engramdb_storage".to_string()),
             cache_size: 100,
+            vector_index_config: VectorIndexConfig::default(),
         }
     }
 }
@@ -74,29 +78,23 @@ pub struct Database {
     storage: Box<dyn StorageEngine>,
     
     /// Vector index for similarity search
-    pub vector_index: VectorIndex,
+    pub vector_index: Box<dyn VectorSearchIndex + Send + Sync>,
 }
 
-// Manual implementation of Clone for Database 
-// (needed for Python bindings) using Arc for the trait object
+// IMPORTANT: Database cannot be properly cloned because Box<dyn VectorSearchIndex> is not clonable
+// This implementation provides a simplified clone for Python bindings but has limitations
 impl Clone for Database {
     fn clone(&self) -> Self {
         // Note: This is a simplified clone that creates a new instance
-        // sharing the same vector index but with separate storage.
+        // with a fresh vector index and separate storage.
         // For actual clones, consider using Arc for the storage backend.
         
-        // In memory mode, storage is empty after clone
-        if self.vector_index.is_empty() {
-            return Self::in_memory();
-        }
-        
         // Create a new in-memory database
-        let mut db = Self::in_memory();
+        Self::in_memory()
         
-        // Clone the vector index
-        db.vector_index = self.vector_index.clone();
-        
-        db
+        // WARNING: We cannot properly clone the vector index because Box<dyn VectorSearchIndex>
+        // does not implement Clone. The consumer of the cloned Database will need to
+        // repopulate the vector index.
     }
 }
 
@@ -128,7 +126,7 @@ impl Database {
             }
         };
         
-        let vector_index = VectorIndex::new();
+        let vector_index = create_vector_index(&config.vector_index_config);
         
         Ok(Self {
             storage,
@@ -145,8 +143,41 @@ impl Database {
     pub fn in_memory() -> Self {
         Self {
             storage: Box::new(MemoryStorageEngine::new()),
-            vector_index: VectorIndex::new(),
+            vector_index: Box::new(VectorIndex::new()),
         }
+    }
+    
+    /// Creates a new in-memory database with HNSW index for faster vector search
+    pub fn in_memory_with_hnsw() -> Self {
+        let config = DatabaseConfig {
+            storage_type: StorageType::Memory,
+            storage_path: None,
+            cache_size: 100,
+            vector_index_config: VectorIndexConfig {
+                algorithm: VectorAlgorithm::HNSW,
+                hnsw: Some(HnswConfig::default()),
+            },
+        };
+        
+        Self {
+            storage: Box::new(MemoryStorageEngine::new()),
+            vector_index: create_vector_index(&config.vector_index_config),
+        }
+    }
+    
+    /// Creates a file-based database with the specified storage path and HNSW index
+    pub fn file_based_with_hnsw<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let config = DatabaseConfig {
+            storage_type: StorageType::MultiFile,
+            storage_path: Some(path.as_ref().to_string_lossy().to_string()),
+            cache_size: 100,
+            vector_index_config: VectorIndexConfig {
+                algorithm: VectorAlgorithm::HNSW,
+                hnsw: Some(HnswConfig::default()),
+            },
+        };
+        
+        Self::new(config)
     }
     
     /// Creates a multi-file based database at the specified directory
@@ -164,7 +195,7 @@ impl Database {
         
         let mut db = Self {
             storage: Box::new(storage),
-            vector_index: VectorIndex::new(),
+            vector_index: Box::new(VectorIndex::new()),
         };
         
         // Initialize by loading existing memories
@@ -188,7 +219,7 @@ impl Database {
         
         let mut db = Self {
             storage: Box::new(storage),
-            vector_index: VectorIndex::new(),
+            vector_index: Box::new(VectorIndex::new()),
         };
         
         // Initialize by loading existing memories
@@ -610,7 +641,7 @@ impl Database {
         }
         
         // Reset the vector index
-        self.vector_index = VectorIndex::new();
+        self.vector_index = create_vector_index(&VectorIndexConfig::default());
         
         Ok(())
     }
@@ -621,7 +652,7 @@ impl Database {
 /// This struct wraps the QueryBuilder with a specific database instance,
 /// allowing for easier querying.
 pub struct DatabaseQueryBuilder<'a> {
-    vector_index: &'a VectorIndex,
+    vector_index: &'a Box<dyn VectorSearchIndex + Send + Sync>,
     database: &'a Database,
 }
 
@@ -657,7 +688,7 @@ impl<'a> DatabaseQueryBuilder<'a> {
 /// A database query with builder methods for adding constraints
 pub struct DatabaseQuery<'a> {
     builder: QueryBuilder,
-    vector_index: &'a VectorIndex,
+    vector_index: &'a Box<dyn VectorSearchIndex + Send + Sync>,
     database: &'a Database,
 }
 
@@ -695,6 +726,6 @@ impl<'a> DatabaseQuery<'a> {
     /// Executes the query and returns the matching memory nodes
     pub fn execute(self) -> Result<Vec<MemoryNode>> {
         let db = self.database;
-        self.builder.execute(self.vector_index, |id| db.load(id))
+        self.builder.execute(self.vector_index.as_ref(), |id| db.load(id))
     }
 }

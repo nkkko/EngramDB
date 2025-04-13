@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::core::MemoryNode;
 use crate::error::EngramDbError;
-use crate::vector::VectorIndex;
+use crate::vector::VectorSearchIndex;
 use crate::Result;
 
 use super::filter::{AttributeFilter, TemporalFilter};
@@ -164,7 +164,7 @@ impl QueryBuilder {
     /// A vector of memory nodes matching the query, sorted by relevance
     pub fn execute<F>(
         &self,
-        vector_index: &VectorIndex,
+        vector_index: &(dyn VectorSearchIndex + Send + Sync),
         mut memory_nodes: F,
     ) -> Result<Vec<MemoryNode>>
     where
@@ -236,6 +236,7 @@ impl QueryBuilder {
 mod tests {
     use super::*;
     use crate::core::AttributeValue;
+    use crate::vector::{create_vector_index, VectorIndexConfig};
     use std::collections::HashMap;
 
     // Helper to create a test memory node with specific attributes
@@ -264,7 +265,7 @@ mod tests {
         let id3 = Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap();
 
         // Create a vector index
-        let mut vector_index = VectorIndex::new();
+        let mut vector_index = create_vector_index(&VectorIndexConfig::default());
 
         // Set up test node map
         let mut node_map = HashMap::new();
@@ -297,7 +298,7 @@ mod tests {
 
         // Execute the query with a custom node loader
         let results = query
-            .execute(&vector_index, |id| {
+            .execute(vector_index.as_ref(), |id| {
                 // Look up the node in our test map
                 match node_map.get(&id) {
                     Some(node) => Ok(node.clone()),
@@ -321,7 +322,7 @@ mod tests {
         let id3 = Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap();
 
         // Create a vector index
-        let mut vector_index = VectorIndex::new();
+        let mut vector_index = create_vector_index(&VectorIndexConfig::default());
 
         // Test node map
         let mut node_map = HashMap::new();
@@ -390,9 +391,9 @@ mod tests {
 
         // Execute the query
         let results = query
-            .execute(&vector_index, |id| match node_map.get(&id) {
+            .execute(vector_index.as_ref(), |id| match node_map.get(&id) {
                 Some(node) => Ok(node.clone()),
-                None => Err(RtampError::Storage(format!("Node not found: {}", id))),
+                None => Err(EngramDbError::Storage(format!("Node not found: {}", id))),
             })
             .unwrap();
 

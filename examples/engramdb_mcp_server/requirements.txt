@@ -1,0 +1,2 @@
+modelcontextprotocol>=0.1.0
+../../../python/  # EngramDB from local source

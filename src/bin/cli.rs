@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use chrono::Local;
 use engramdb::core::{AttributeValue, MemoryNode};
 use engramdb::database::{Database, DatabaseConfig, StorageType};
+use engramdb::vector::VectorIndexConfig;
 use engramdb::error::EngramDbError;
 use engramdb::Result;
 use std::io::{self, BufRead, Write};
@@ -769,6 +770,7 @@ fn main() -> Result<()> {
         storage_type: if cli.memory { StorageType::Memory } else { storage_type },
         storage_path: cli.database.map(|p| p.to_string_lossy().to_string()),
         cache_size: 100,
+        vector_index_config: VectorIndexConfig::default(),
     };
     
     // Initialize the database

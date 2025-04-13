@@ -29,6 +29,7 @@ pub trait Provider {
 pub struct ModelProvider {
     dimensions: usize,
     /// Model type being used
+    #[allow(dead_code)]
     model_type: EmbeddingModel,
     /// This field will hold PyO3 model references when Python is available
     #[allow(dead_code)]
@@ -57,10 +58,10 @@ impl ModelProvider {
         let model_type = EmbeddingModel::from_name(model_name);
         
         // Get dimensions based on model type
-        let mut dimensions = model_type.dimensions();
+        let _dimensions = model_type.dimensions();
         
         // If it's a custom model, use the actual model name, otherwise use the canonical ID
-        let model_id = if model_type == EmbeddingModel::Custom {
+        let _model_id = if model_type == EmbeddingModel::Custom {
             model_name
         } else {
             model_type.model_id()
@@ -140,16 +141,16 @@ impl Provider for ModelProvider {
         self.generate_for_document(text, None)
     }
     
-    fn generate_for_document(&self, text: &str, category: Option<&str>) -> Result<Vec<f32>, Box<dyn Error>> {
+    fn generate_for_document(&self, _text: &str, _category: Option<&str>) -> Result<Vec<f32>, Box<dyn Error>> {
         #[cfg(feature = "python")]
         {
             use pyo3::prelude::*;
             use pyo3::types::{PyDict, PyList};
             
             // Format text with optional category
-            let formatted_text = match category {
-                Some(cat) => format!("Represent the {} document for retrieval: {}", cat, text),
-                None => format!("Represent the document for retrieval: {}", text),
+            let formatted_text = match _category {
+                Some(cat) => format!("Represent the {} document for retrieval: {}", cat, _text),
+                None => format!("Represent the document for retrieval: {}", _text),
             };
             
             let model_data = match &self.model_data {
@@ -233,11 +234,11 @@ impl Provider for ModelProvider {
         }
     }
     
-    fn generate_for_query(&self, text: &str) -> Result<Vec<f32>, Box<dyn Error>> {
+    fn generate_for_query(&self, _text: &str) -> Result<Vec<f32>, Box<dyn Error>> {
         #[cfg(feature = "python")]
         {
             // For query, we use a specific instruction
-            let formatted_text = format!("query: {}", text);
+            let formatted_text = format!("query: {}", _text);
             self.generate(&formatted_text)
         }
         

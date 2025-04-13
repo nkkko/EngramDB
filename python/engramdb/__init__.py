@@ -5,10 +5,11 @@ A specialized database system designed for agent memory management.
 """
 
 try:
-    from engramdb_py import sum_as_string, MemoryNode, Database, RelationshipType
+    from ._engramdb import *
+    print("Imported _engramdb successfully")
 except ImportError as e:
     import sys
-    print(f"Error importing engramdb_py: {e}", file=sys.stderr)
+    print(f"Error importing _engramdb: {e}", file=sys.stderr)
     # For debugging purposes only
     def sum_as_string(a, b):
         return str(a + b)
@@ -33,4 +34,3 @@ except ImportError as e:
         Contains = 3
 
 __version__ = "0.1.0"
-__all__ = ["sum_as_string", "MemoryNode", "Database", "RelationshipType"]

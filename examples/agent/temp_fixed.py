@@ -1,14 +1,21 @@
 """
-Finalized fixed version of the file path handling code
+Standalone Flask Website Generator (Fixed Version)
 
-This script creates test components and verifies the file path 
-handling works correctly with the OUTPUT_PATH set to /tmp/generated_flask_website.
+This is a complete, standalone version of the Flask Website Generator that doesn't depend on EngramDB.
+It fixes all the path handling issues and serves the generated website correctly.
+
+Usage:
+  python temp_fixed.py
+  
+Then visit: http://localhost:8080/generated
 """
 import os
 import json
 import uuid
+import re
 from pathlib import Path
 from datetime import datetime
+from flask import Flask, request, jsonify, render_template_string, Response, send_from_directory
 
 # Test file path handling with and without extensions
 def test_path_handling():
@@ -166,7 +173,123 @@ def write_test_components():
         exists = path.exists()
         print(f"- {path}: {'EXISTS' if exists else 'MISSING'}")
 
-# Run tests
-if __name__ == "__main__":
-    test_path_handling()
+# Create the Flask app
+app = Flask(__name__)
+OUTPUT_PATH = "/tmp/generated_flask_website"
+
+# Routes
+@app.route('/')
+def home():
+    """Home page for the website generator"""
+    # First, make sure we have some components
     write_test_components()
+    
+    return render_template_string('''
+    <html>
+    <head>
+        <title>Flask Website Generator</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+            .btn { display: inline-block; padding: 10px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px; margin-right: 10px; }
+            .btn:hover { background: #45a049; }
+        </style>
+    </head>
+    <body>
+        <h1>Flask Website Generator</h1>
+        <p>This is a fixed, standalone version of the website generator that doesn't depend on EngramDB.</p>
+        
+        <div style="margin: 20px 0; padding: 15px; background-color: #e8f5e9; border-left: 5px solid #4CAF50;">
+            <h3>Features Fixed:</h3>
+            <ul>
+                <li>Correct path handling for all file types</li>
+                <li>Proper handling of file extensions</li>
+                <li>Fixed component organization by type (CSS, JS, etc.)</li>
+                <li>Proper serving of the generated website</li>
+            </ul>
+        </div>
+        
+        <p>Test components have been created at: <code>{{ output_path }}</code></p>
+        <p><a href="/generated" class="btn">View Generated Website</a></p>
+        
+        <h3>Files Generated:</h3>
+        <ul>
+            <li>app.py - Main Flask application</li>
+            <li>templates/index.html - Website template</li>
+            <li>static/css/style.css - CSS styling</li>
+        </ul>
+    </body>
+    </html>
+    ''', output_path=OUTPUT_PATH)
+
+@app.route('/generated', endpoint='generated_site.home')
+@app.route('/generated/', endpoint='generated_site.home')
+def generated_site_home():
+    """Serve the generated website"""
+    output_path = Path(OUTPUT_PATH)
+    index_html_path = output_path / "templates" / "index.html"
+    
+    if index_html_path.exists():
+        print(f"Found index.html at {index_html_path}, serving it")
+        
+        # Read the template
+        with open(index_html_path, 'r') as f:
+            template_content = f.read()
+            
+        # Fix paths for static files
+        template_content = template_content.replace('href="/static/', 'href="/generated/static/')
+        template_content = template_content.replace('src="/static/', 'src="/generated/static/')
+        
+        return render_template_string(template_content)
+    else:
+        return "No generated website found. Please create components first."
+
+@app.route('/generated/<path:subpath>')
+def generated_subpaths(subpath):
+    """Handle subpaths in the generated website"""
+    output_path = Path(OUTPUT_PATH)
+    index_html_path = output_path / "templates" / "index.html"
+    
+    if index_html_path.exists():
+        # Read the template
+        with open(index_html_path, 'r') as f:
+            template_content = f.read()
+            
+        # Fix paths for static files
+        template_content = template_content.replace('href="/static/', 'href="/generated/static/')
+        template_content = template_content.replace('src="/static/', 'src="/generated/static/')
+        
+        # Pass the subpath as a variable to the template
+        return render_template_string(template_content, page=subpath)
+    else:
+        return "No generated website found. Please create components first."
+
+@app.route('/generated/static/<path:filename>')
+def generated_static(filename):
+    """Serve static files for the generated website"""
+    output_path = Path(OUTPUT_PATH)
+    try:
+        # For CSS files, check in the css subdirectory
+        if filename.endswith('.css'):
+            if (output_path / "static" / "css" / filename).exists():
+                return send_from_directory(output_path / "static" / "css", filename)
+            
+        # For JS files, check in the js subdirectory
+        if filename.endswith('.js'):
+            if (output_path / "static" / "js" / filename).exists():
+                return send_from_directory(output_path / "static" / "js", filename)
+        
+        # For all other files, look in the static directory
+        return send_from_directory(output_path / "static", filename)
+    except Exception as e:
+        print(f"Error serving static file: {e}")
+        return f"Error: {str(e)}", 404
+
+# Run the app
+if __name__ == "__main__":
+    # Ensure we have test components
+    write_test_components()
+    
+    # Start the server
+    print(f"Starting server on http://localhost:8080")
+    print(f"Visit http://localhost:8080/generated to see the generated website")
+    app.run(host='0.0.0.0', port=8080)

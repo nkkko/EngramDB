@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use super::cosine_similarity;
+use super::{cosine_similarity, VectorSearchIndex};
 use crate::core::MemoryNode;
 use crate::error::EngramDbError;
 use crate::Result;
@@ -33,8 +33,13 @@ impl VectorIndex {
     ///
     /// A Result indicating success or the specific error that occurred
     pub fn add(&mut self, node: &MemoryNode) -> Result<()> {
-        self.embeddings
-            .insert(node.id(), node.embeddings().to_vec());
+        // Create a capacity-optimized vector to avoid over-allocation
+        let embeddings = node.embeddings();
+        let mut vec = Vec::with_capacity(embeddings.len());
+        vec.extend_from_slice(embeddings);
+        
+        // Insert or replace the embeddings for this node
+        self.embeddings.insert(node.id(), vec);
         Ok(())
     }
 
@@ -67,9 +72,8 @@ impl VectorIndex {
     ///
     /// A Result indicating success or the specific error that occurred
     pub fn update(&mut self, node: &MemoryNode) -> Result<()> {
-        self.embeddings
-            .insert(node.id(), node.embeddings().to_vec());
-        Ok(())
+        // Reuse the same code path as add, which is optimized
+        self.add(node)
     }
 
     /// Performs a similarity search to find the most similar vectors
@@ -133,6 +137,37 @@ impl VectorIndex {
     /// A reference to the vector if found, otherwise None
     pub fn get(&self, id: Uuid) -> Option<&Vec<f32>> {
         self.embeddings.get(&id)
+    }
+}
+
+// Implement the VectorSearchIndex trait for VectorIndex
+impl VectorSearchIndex for VectorIndex {
+    fn add(&mut self, node: &MemoryNode) -> Result<()> {
+        self.add(node)
+    }
+    
+    fn remove(&mut self, id: Uuid) -> Result<()> {
+        self.remove(id)
+    }
+    
+    fn update(&mut self, node: &MemoryNode) -> Result<()> {
+        self.update(node)
+    }
+    
+    fn search(&self, query: &[f32], limit: usize, threshold: f32) -> Result<Vec<(Uuid, f32)>> {
+        self.search(query, limit, threshold)
+    }
+    
+    fn len(&self) -> usize {
+        self.len()
+    }
+    
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+    
+    fn get(&self, id: Uuid) -> Option<&Vec<f32>> {
+        self.get(id)
     }
 }
 

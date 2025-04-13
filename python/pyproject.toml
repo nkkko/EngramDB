@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "engramdb-py"
 description = "Python bindings for the EngramDB database"
 authors = [
-    {name = "Author", email = "author@example.com"}
+    {name = "Niko", email = "engramdb@disequi.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.8"
@@ -35,7 +35,9 @@ Documentation = "https://github.com/nkkko/engramdb/python/README.md"
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "engramdb"
-module-name = "engramdb_py"
+module-name = "_engramdb"
+include = ["Cargo.toml", "src/**/*"]
+sdist-include = ["python/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

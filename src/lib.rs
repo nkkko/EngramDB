@@ -20,6 +20,7 @@ pub use crate::database::StorageType;
 pub use crate::embeddings::EmbeddingService;
 pub use crate::query::QueryBuilder;
 pub use crate::storage::StorageEngine;
+pub use crate::vector::{ThreadSafeDatabase, ThreadSafeDatabasePool};
 
 /// Error types for the EngramDB system
 pub mod error {

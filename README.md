@@ -17,6 +17,8 @@ EngramDB is a specialized database designed for agent memory management. It enab
 
 - **Unified Memory Representation**: Combines graph, vector, and temporal properties in a single primitive
 - **Vector Similarity Search**: Find semantically similar memories with efficient similarity metrics
+  - **HNSW Vector Index**: Hierarchical Navigable Small World algorithm for super-fast search
+  - **Multiple Embedding Models**: Support for E5, GTE, Jina, and custom embedding models
 - **Flexible Storage Options**: Choose between in-memory (for testing) or file-based (for persistence) storage
 - **Advanced Query System**: Rich query capabilities with vector similarity, attribute filters, and temporal constraints
 - **Memory Evolution**: Track memory changes over time with temporal versioning

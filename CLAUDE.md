@@ -22,5 +22,7 @@
 - Prefer owned types over references when appropriate
 - Use strong typing (avoid String/&str when a specific type would be better)
 - Place tests in a tests module with #[cfg(test)]
+- Make all traits that may be used across threads (like VectorSearchIndex) bound by Send + Sync
+- Avoid reference borrowing issues by cloning when necessary, especially in vector indexing code
 - Never mention Claude in commits.
 - Always create new git branch for new feature or fix.

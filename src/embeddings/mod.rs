@@ -4,7 +4,7 @@
 //! which can be used for semantic search and memory creation within EngramDB.
 
 mod providers;
-pub use providers::*;
+// Provider implementations will be re-exported below
 
 /// Core embedding functionality
 pub mod core;
@@ -63,7 +63,7 @@ pub mod embedding_service {
     /// Main service for generating embeddings
     #[derive(Clone)]
     pub struct EmbeddingService {
-        provider: Arc<Mutex<dyn Provider + Send>>,
+        provider: Arc<Mutex<Box<dyn Provider + Send>>>,
         dimensions: usize,
     }
 
@@ -72,7 +72,7 @@ pub mod embedding_service {
         pub fn new<P: Provider + Send + 'static>(provider: P) -> Self {
             let dimensions = provider.dimensions();
             Self {
-                provider: Arc::new(Mutex::new(provider)),
+                provider: Arc::new(Mutex::new(Box::new(provider))),
                 dimensions,
             }
         }
@@ -97,7 +97,7 @@ pub mod embedding_service {
                 Ok(provider) => {
                     let dimensions = provider.dimensions();
                     Self {
-                        provider: Arc::new(Mutex::new(provider)),
+                        provider: Arc::new(Mutex::new(Box::new(provider))),
                         dimensions,
                     }
                 },
@@ -151,7 +151,7 @@ pub mod embedding_service {
         }
 
         // Get a lock on the provider
-        fn get_provider(&self) -> EmbeddingResult<MutexGuard<dyn Provider + Send>> {
+        fn get_provider(&self) -> EmbeddingResult<MutexGuard<Box<dyn Provider + Send>>> {
             self.provider.lock()
                 .map_err(|e| EmbeddingError::ProviderUnavailable(format!("Failed to acquire lock: {}", e)))
         }

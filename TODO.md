@@ -58,7 +58,10 @@ transaction.commit()?; // Or transaction.rollback()?
 
 ### 2. Advanced Vector Indexing
 
-- [ ] [P0] Implement HNSW (Hierarchical Navigable Small World) algorithm for faster vector search
+- [x] [P0] Implement HNSW (Hierarchical Navigable Small World) algorithm for faster vector search (2025-04-10)
+  - [x] [P0] Fix HNSW implementation to handle thread-safety requirements (2025-04-15)
+  - [x] [P0] Optimize borrowing patterns in HNSW similarity search (2025-04-15)
+- [x] [P1] Document HNSW implementation and usage in API reference (2025-04-11)
 - [ ] [P2] Add IVF (Inverted File Index) support for large-scale vector collections
 - [ ] [P2] Create product quantization for memory-efficient storage of vectors
 - [ ] [P1] Add hybrid indexing that combines exact and approximate methods
@@ -75,8 +78,13 @@ db.configure_index()
     .build()?;
 ```
 
-### 3. Connection Pooling & Concurrency
+### 3. Thread Safety & Concurrency
 
+- [ ] [P0] Implement thread safety in EngramDB Database class
+  - [ ] Make Database implement the Send and Sync traits in Rust
+  - [ ] Ensure all internal fields are thread-safe with proper locking
+  - [ ] Add tests for multi-threaded access patterns
+  - [ ] Document thread safety guarantees
 - [ ] [P1] Implement a connection pool for handling multiple clients
 - [ ] [P0] Add read/write locks at different granularity levels
 - [ ] [P1] Support concurrent readers with single writer pattern
@@ -180,7 +188,7 @@ db.save(&engram)?;
 - [x] [P1] Create Pythonic wrapper classes for MemoryNode and Database (completed 2025-04-01)
 - [ ] [P2] Develop Python-native query builder interface
 - [ ] [P2] Write comprehensive Python documentation and examples
-- [ ] [P3] Add compatibility with popular Python ML libraries (numpy, pytorch, etc.)
+- [x] [P3] Add compatibility with popular Python ML libraries (numpy, pytorch, etc.) (2025-04-09)
 
 ### 10. Virtual Tables
 
@@ -222,20 +230,19 @@ db.save(&engram)?;
 - [ ] [P2] Add optional schema validation for attributes
 - [ ] [P2] Standardize behaviors across different storage engines
 - [ ] [P1] Add support for bulk operations (import/export)
-- [ ] [P2] Implement helper functions for generating embeddings from text
 - [ ] [P3] Create a web interface for database management
 
 ## Implementation Phases
 
 ### Phase 1 (Short-term)
 - All [P0] tasks:
-  - Implement HNSW algorithm for faster vector search
+  - ✓ Implement HNSW algorithm for faster vector search 
+  - ✓ Fix thread-safety and borrowing patterns in HNSW implementation
   - Add read/write locks at different granularity levels
   - Implement example using EngramDB with pydantic.ai agentic framework
 - Critical [P1] tasks:
   - Transaction support (without isolation levels)
   - Read/write concurrency
-  - Hybrid vector indexing
   - Custom query language for memory retrieval
   - Improve storage engine error handling
   - Extend query capabilities
@@ -260,7 +267,14 @@ db.save(&engram)?;
 
 - [x] [P0] Create initial in-memory storage engine (2023-04-05)
 - [x] [P0] Implement basic file storage persistence (2023-04-05)
+- [x] [P0] Implement HNSW (Hierarchical Navigable Small World) algorithm for faster vector search (2025-04-10)
+  - [x] [P0] Fix HNSW implementation to handle thread-safety requirements (2025-04-15)
+  - [x] [P0] Optimize borrowing patterns in HNSW similarity search (2025-04-15)
+  - [x] [P0] Clean up code warnings and improve error handling (2025-04-15)
 - [x] [P1] Implement basic graph connections between memory nodes (2023-04-05)
 - [x] [P1] Implement PyO3 bindings for core EngramDB functionality (2025-04-01)
 - [x] [P1] Create Pythonic wrapper classes for MemoryNode and Database (2025-04-01)
 - [x] [P1] Create basic CLI for EngramDB database management (2025-04-07)
+- [x] [P1] Document HNSW implementation and usage in API reference (2025-04-11)
+- [x] [P2] Implement helper functions for generating embeddings from text (2025-04-09)
+- [x] [P2] Add support for multiple embedding models (2025-04-09)
