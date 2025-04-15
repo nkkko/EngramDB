@@ -1,6 +1,6 @@
 # EngramDB MCP Server
 
-This directory contains a Model Context Protocol (MCP) server implementation for EngramDB, allowing LLM applications to interact with an EngramDB database.
+This directory contains a Model Context Protocol (MCP) server implementation for EngramDB, allowing LLM applications to interact with an EngramDB database over STDIO.
 
 ## What is MCP?
 
@@ -11,7 +11,7 @@ The Model Context Protocol (MCP) is an open protocol for enabling LLMs to intera
 This MCP server provides the following tools for interacting with EngramDB:
 
 - **create_memory**: Create a new memory node in EngramDB
-- **retrieve_memory**: Retrieve a memory by ID 
+- **retrieve_memory**: Retrieve a memory by ID
 - **search_memories**: Search memories by content (uses vector search)
 - **list_memories**: List memories with pagination
 - **delete_memory**: Delete a memory
@@ -33,98 +33,42 @@ The server is designed to work with uv for dependency management. If you don't h
 curl -fsS https://astral.sh/uv/install.sh | bash
 ```
 
-### Using uv (Recommended)
+### Using uv (Required)
 
-uv will automatically handle dependencies and virtual environments:
-
-```bash
-# Run the server directly (will set up environment automatically)
-uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py
-```
-
-### Manual Installation (Alternative)
-
-If you prefer to set up dependencies manually:
+uv handles dependencies and virtual environments efficiently:
 
 ```bash
-# Create a virtual environment
-python -m venv venv
-source venv/bin/activate
+# Install required dependencies
+uv pip install -r requirements.txt
 
-# Install dependencies
-pip install modelcontextprotocol
+# Install EngramDB (either from PyPI or from the provided wheel file)
+uv pip install engramdb-py
+# or
+uv pip install ./engramdb_py-0.1.0-cp313-cp313-macosx_11_0_arm64.whl
 
-# Install EngramDB from local source
-pip install -e ../../python/
+# Run the server directly
+uv --directory . run server.py
 ```
 
 ## Usage
 
-### Starting the MCP Server (Stdio)
+### Starting the MCP Server (STDIO)
 
 For direct use with applications like Claude Desktop:
 
 ```bash
-# Using uv (recommended)
-uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py
+# Run the server with the provided script
+./run_mcp_server.sh
 
-# Or without uv
-python server.py
+# Or run it directly
+uv --directory . run server.py
 ```
 
-### Starting the HTTP Server
-
-For web-based clients or applications that support HTTP/SSE connections:
-
-```bash
-# Using uv (recommended)
-uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py --http [PORT]
-
-# Or without uv
-python server.py --http [PORT]
-```
-
-By default, the HTTP server runs on port 8080. You can change this by providing a port number or setting the `MCP_PORT` environment variable:
-
-```bash
-MCP_PORT=9000 uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py --http
-```
-
-### Configuring the Database Location
-
-By default, EngramDB data is stored in the `engramdb_data` directory. You can change this by setting the `ENGRAMDB_PATH` environment variable:
-
-```bash
-ENGRAMDB_PATH=/path/to/data uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py
-```
-
-## Example Queries
-
-Here are some examples of how to use the tools provided by this MCP server:
-
-### Creating a Memory
-
-```
-Create a new memory with the content "This is important information that I want to remember" and add metadata with a tag "important".
-```
-
-### Searching Memories
-
-```
-Search for memories related to "important information".
-```
-
-### Creating Relationships
-
-```
-Create a relationship between memory X and memory Y indicating that X is similar to Y.
-```
-
-## Integrating with MCP Clients
-
-### Claude Desktop
+### Using with Claude Desktop
 
 #### Setting Up in Claude Desktop
+
+##### Manual Configuration
 
 1. In Claude Desktop:
    - Go to Settings > Servers
@@ -169,7 +113,7 @@ Configuration locations:
 If you prefer to add just this server to your existing configuration:
 
 1. Open Claude Desktop settings > Advanced
-2. Click "Edit Configuration" 
+2. Click "Edit Configuration"
 3. Add the EngramDB server to the existing `mcpServers` object:
 
 ```json
@@ -191,48 +135,55 @@ If you prefer to add just this server to your existing configuration:
 
 ### Claude Code and Other CLI Tools
 
-To use the EngramDB MCP server with Claude Code and other command-line based MCP clients:
+For CLI tools that support STDIO-based MCP servers, you can either:
 
-1. Start the HTTP server: 
+1. Use the included script:
    ```bash
-   uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py --http
+   ./run_mcp_server.sh
    ```
 
-2. Configure your MCP client to connect to: `http://localhost:8080`
+2. Or start the server directly:
+   ```bash
+   uv --directory . run server.py
+   ```
 
-For Claude Code, you can start it with:
+## Configuring the Database Location
+
+By default, EngramDB data is stored in the `engramdb_data` directory. You can change this by setting the `ENGRAMDB_PATH` environment variable:
 
 ```bash
-claude-code --server http://localhost:8080
+ENGRAMDB_PATH=/path/to/data uv --directory . run server.py
 ```
 
-### Web-Based & Other MCP Clients
+## Example Queries
 
-For web-based or other MCP clients that support HTTP/SSE connections:
+Here are some examples of how to use the tools provided by this MCP server:
 
-1. Start the HTTP server: 
-   ```bash
-   uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py --http
-   ```
-   
-2. Configure your client to connect to: `http://localhost:8080`
+### Creating a Memory
 
-Many MCP clients require a JSON configuration. Here's a generic configuration template you can adapt:
+```
+Create a new memory with the content "This is important information that I want to remember" and add metadata with a tag "important".
+```
 
-```json
-{
-  "name": "EngramDB Memory Server",
-  "id": "engramdb-server",
-  "url": "http://localhost:8080"
-}
+### Searching Memories
+
+```
+Search for memories related to "important information".
+```
+
+### Creating Relationships
+
+```
+Create a relationship between memory X and memory Y indicating that X is similar to Y.
 ```
 
 ## Troubleshooting
 
 If you encounter issues connecting:
 
-1. **Check uv installation**:
+1. **Check dependencies**:
    ```bash
+   # Check uv installation
    uv --version
    ```
 
@@ -244,26 +195,9 @@ If you encounter issues connecting:
    - Look at the log file: `~/Library/Logs/Claude/mcp-server-engramdb.log`
    - Watch for "invalid JSON" errors that indicate stdout/stderr mixing issues
 
-4. **Test connectivity**:
-   Run the HTTP server manually and test:
-   ```bash
-   uv --directory /path/to/engramdb/examples/engramdb_mcp_server run server.py --http
-   curl http://localhost:8080
-   ```
-
-5. **Check environment**:
+4. **Check environment**:
    - Make sure `PYTHONUNBUFFERED=1` is set to prevent buffering issues
    - Ensure EngramDB is properly installed and accessible
-
-## Testing
-
-You can test the functionality of the MCP server using the included test script:
-
-```bash
-uv --directory /path/to/engramdb/examples/engramdb_mcp_server run test_mcp_server.py
-```
-
-This script will connect to the server and test all available tools to verify they're working correctly.
 
 ## License
 

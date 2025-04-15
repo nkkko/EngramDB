@@ -15,13 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-import engramdb as engramdb_py
-from mcp.server import Server
-import mcp.types as types
-from mcp.server.stdio import stdio_server
-from mcp.server.flask import flask_server
-
-# Configure logging
+# Configure logging first to ensure all output goes to stderr
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -29,17 +23,157 @@ logging.basicConfig(
 )
 logger = logging.getLogger("engramdb-mcp")
 
+# Import modules after logging is configured
+try:
+    import engramdb as engramdb_py
+    logger.info("Successfully imported engramdb module")
+except ImportError:
+    try:
+        import engramdb_py
+        logger.info("Successfully imported engramdb_py module")
+    except ImportError:
+        logger.info("Using mock engramdb_py module for testing")
+        # Create a mock module for testing
+        import sys
+        from pathlib import Path
+        
+        # Import our local mock module
+        sys.path.insert(0, str(Path(__file__).parent.absolute()))
+        import engramdb_py
+
 # Create EngramDB database instance
 DB_PATH = os.environ.get("ENGRAMDB_PATH", "engramdb_data")
 db = engramdb_py.ThreadSafeDatabase(DB_PATH)
 
+class MCPServer:
+    """MCP Server for EngramDB operations using JSON-RPC 2.0 format."""
+    
+    def __init__(self, name: str, version: str, description: str):
+        self.name = name
+        self.version = version
+        self.description = description
+        self.tools = {}
+        self.tool_definitions = {}
+    
+    def register_tool(self, name: str, description: str, input_schema: Dict[str, Any] = None):
+        """Register a tool with the server."""
+        def decorator(func):
+            self.tools[name] = func
+            self.tool_definitions[name] = {
+                "name": name,
+                "description": description,
+                "input_schema": input_schema or {}
+            }
+            return func
+        return decorator
+    
+    async def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle an incoming MCP message in JSON-RPC 2.0 format."""
+        method = message.get("method", "")
+        msg_id = message.get("id")
+        
+        if method == "initialize":
+            return await self.handle_initialize(message)
+        elif method == "tools/invoke":
+            return await self.handle_tool_call(message)
+        else:
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Method not found: {method}"
+                }
+            }
+    
+    async def handle_initialize(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle an initialization message."""
+        logger.info("Received initialize message")
+        
+        # Extract client capabilities
+        params = message.get("params", {})
+        client_info = params.get("clientInfo", {})
+        client_name = client_info.get("name", "Unknown Client")
+        client_version = client_info.get("version", "Unknown Version")
+        msg_id = message.get("id")
+        
+        logger.info(f"Client: {client_name} {client_version}")
+        
+        # Prepare tool definitions for response
+        tools = {}
+        for name, tool_def in self.tool_definitions.items():
+            tools[name] = {
+                "name": tool_def["name"],
+                "description": tool_def["description"],
+                "input_schema": tool_def["input_schema"]
+            }
+        
+        # Respond with server capabilities in JSON-RPC format
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "serverInfo": {
+                    "name": self.name,
+                    "version": self.version,
+                    "description": self.description
+                },
+                "capabilities": {
+                    "tools": {tool: {"schema": self.tool_definitions[tool]["input_schema"]} for tool in self.tool_definitions}
+                }
+            }
+        }
+    
+    async def handle_tool_call(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle a tool call message."""
+        params = message.get("params", {})
+        tool_name = params.get("name")
+        tool_input = params.get("input", {})
+        msg_id = message.get("id")
+        
+        logger.info(f"Received tool call: {tool_name}")
+        
+        if tool_name not in self.tools:
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Tool not found: {tool_name}"
+                }
+            }
+        
+        try:
+            # Call the tool function with the provided input
+            tool_func = self.tools[tool_name]
+            result = await tool_func(**tool_input)
+            
+            # Return successful result in JSON-RPC format
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": result
+            }
+        except Exception as e:
+            # Log the error details
+            logger.error(f"Error calling tool {tool_name}: {str(e)}")
+            
+            # Return error result in JSON-RPC format
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {
+                    "code": -32000,
+                    "message": str(e)
+                }
+            }
+
 # Create MCP server
-app = Server(
+app = MCPServer(
     "engramdb-server",
     version="0.1.0",
     description="MCP server for EngramDB operations"
 )
-
 
 # Define tools for EngramDB
 @app.register_tool(
@@ -433,41 +567,63 @@ async def get_related_memories(
         return {"error": str(e)}
 
 
-async def run_stdio_server():
-    """Run the MCP server using stdio transport."""
-    logger.info("Starting EngramDB MCP Server (stdio)...")
-    
-    async with stdio_server() as streams:
-        await app.run(
-            streams[0],
-            streams[1],
-            app.create_initialization_options(
-                capabilities={
-                    "tools": {},
-                }
-            )
-        )
-
-
-def run_http_server(port=8080):
-    """Run the MCP server using HTTP transport."""
-    logger.info(f"Starting EngramDB MCP Server (HTTP) on port {port}...")
+async def main():
+    """Main function to run the STDIO MCP server."""
+    logger.info("Starting EngramDB MCP Server (STDIO)")
     logger.info(f"Using EngramDB database at: {DB_PATH}")
     
-    flask_server(app, port=port)
+    # Set up stdin/stdout for reading/writing
+    reader = asyncio.StreamReader()
+    protocol = asyncio.StreamReaderProtocol(reader)
+    await asyncio.get_event_loop().connect_read_pipe(lambda: protocol, sys.stdin)
+    
+    writer_transport, writer_protocol = await asyncio.get_event_loop().connect_write_pipe(
+        asyncio.streams.FlowControlMixin, sys.stdout
+    )
+    writer = asyncio.StreamWriter(writer_transport, writer_protocol, None, asyncio.get_event_loop())
+    
+    try:
+        while True:
+            # Read a line from stdin
+            line = await reader.readline()
+            if not line:  # EOF
+                break
+                
+            # Parse the JSON message
+            try:
+                message = json.loads(line.decode('utf-8'))
+                logger.info(f"Received message: {message.get('method')}")
+                
+                # Handle the message
+                response = await app.handle_message(message)
+                
+                # Write the response
+                response_json = json.dumps(response) + "\n"
+                writer.write(response_json.encode('utf-8'))
+                await writer.drain()
+                
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON: {line.decode('utf-8')}")
+                error_response = json.dumps({
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {
+                        "code": -32700,
+                        "message": "Parse error"
+                    }
+                }) + "\n"
+                writer.write(error_response.encode('utf-8'))
+                await writer.drain()
+                
+    except KeyboardInterrupt:
+        logger.info("Server shutting down")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+    finally:
+        writer.close()
+        logger.info("Server stopped")
 
 
 if __name__ == "__main__":
-    # Check for HTTP mode flag
-    if len(sys.argv) > 1 and sys.argv[1] == "--http":
-        # Get port from environment or command line
-        port = int(os.environ.get("MCP_PORT", 8080))
-        if len(sys.argv) > 2:
-            try:
-                port = int(sys.argv[2])
-            except ValueError:
-                pass
-        run_http_server(port)
-    else:
-        # Run in stdio mode (default)
-        asyncio.run(run_stdio_server())
+    # Run in STDIO mode only as requested
+    asyncio.run(main())

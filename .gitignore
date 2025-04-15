@@ -3,8 +3,8 @@
 **/*.rs.bk
 Cargo.lock
 
-# RTAMP storage
-/memory_storage/
+# Notes
+/notes
 
 # IDE and editor files
 .idea/

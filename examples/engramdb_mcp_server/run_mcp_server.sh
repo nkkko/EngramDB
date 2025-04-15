@@ -1,15 +1,27 @@
 #!/bin/bash
 
-# Redirect all pip output to stderr
-/Users/nikola/.pyenv/shims/python3 -m pip install modelcontextprotocol 1>&2
-/Users/nikola/.pyenv/shims/python3 -m pip install -e /Users/nikola/dev/engramdb/python/ 1>&2
+# Ensure the script is executable
+# chmod +x run_mcp_server.sh
 
-# Create a virtual environment if needed
-if [ ! -d "venv" ]; then
-    /Users/nikola/.pyenv/shims/python3 -m venv venv 1>&2
-    echo "Created virtual environment" 1>&2
+# Redirect all pip output to stderr
+echo "Installing dependencies..." >&2
+uv pip install modelcontextprotocol >&2 || python3 -m pip install modelcontextprotocol >&2
+
+# Try to install EngramDB from local wheel file
+if [ -f "engramdb_py-0.1.0-cp313-cp313-macosx_11_0_arm64.whl" ]; then
+    echo "Installing EngramDB from local wheel file..." >&2
+    uv pip install ./engramdb_py-0.1.0-cp313-cp313-macosx_11_0_arm64.whl >&2 || python3 -m pip install ./engramdb_py-0.1.0-cp313-cp313-macosx_11_0_arm64.whl >&2
+else
+    echo "Local wheel file not found, using mock implementation" >&2
 fi
 
-# Run the server with the virtual environment python
+# Set environment variables
 export PYTHONUNBUFFERED=1
-exec ./venv/bin/python /Users/nikola/dev/engramdb/examples/engramdb_mcp_server/engramdb_mcp_server.py
+export ENGRAMDB_PATH="${ENGRAMDB_PATH:-engramdb_data}"
+
+# Echo startup information to stderr
+echo "Starting EngramDB MCP STDIO Server..." >&2
+echo "Using EngramDB data path: $ENGRAMDB_PATH" >&2
+
+# Run the server
+exec uv --directory . run server.py

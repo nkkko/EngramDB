@@ -62,7 +62,9 @@ class ThreadSafeDatabase:
         # Load existing memories if any
         self._load_memories()
         
-        print(f"Initialized EngramDB ThreadSafeDatabase at: {path}")
+        import logging
+        logger = logging.getLogger("engramdb-py")
+        logger.info(f"Initialized EngramDB ThreadSafeDatabase at: {path}")
     
     def _load_memories(self):
         """Load memories from disk if they exist."""
