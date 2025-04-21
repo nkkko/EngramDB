@@ -227,6 +227,10 @@ impl VectorSearchIndex for MultiVectorIndex {
             .get(&id)
             .and_then(|multi_vec| multi_vec.vectors().first().map(|v| v as &Vec<f32>))
     }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]

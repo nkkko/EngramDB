@@ -606,6 +606,10 @@ impl VectorSearchIndex for HnswIndex {
     fn get(&self, id: Uuid) -> Option<&Vec<f32>> {
         self.get(id)
     }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]

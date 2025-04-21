@@ -179,6 +179,7 @@ mod tests {
             algorithm: VectorAlgorithm::MultiVector,
             hnsw: None,
             multi_vector: Some(MultiVectorIndexConfig::default()),
+            hnsw_multi_vector: None,
         };
 
         // Create a vector index using the factory

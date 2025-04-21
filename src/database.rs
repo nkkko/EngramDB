@@ -1,8 +1,3 @@
-//! The EngramDB Database
-//!
-//! This module provides a unified interface to the EngramDB database system,
-//! combining storage, vector search, and query capabilities.
-
 use crate::core::{Connection, MemoryNode};
 use crate::error::EngramDbError;
 use crate::query::QueryBuilder;
@@ -85,10 +80,10 @@ impl DatabaseConfig {
     }
 
     /// Creates a default file-based configuration
-    pub fn default_file_based(path: &str) -> Self {
+    pub fn default_file_based<P: AsRef<Path>>(path: P) -> Self {
         Self {
             storage_type: StorageType::MultiFile,
-            storage_path: Some(path.to_string()),
+            storage_path: Some(path.as_ref().to_string_lossy().to_string()),
             cache_size: 100,
             vector_index_config: VectorIndexConfig::default(),
         }
@@ -102,6 +97,11 @@ impl DatabaseConfig {
     /// Sets the multi-vector configuration
     pub fn set_multi_vector_config(&mut self, config: crate::vector::MultiVectorIndexConfig) {
         self.vector_index_config.multi_vector = Some(config);
+    }
+    
+    /// Sets the HNSW multi-vector configuration
+    pub fn set_hnsw_multi_vector_config(&mut self, config: crate::vector::HnswMultiVectorConfig) {
+        self.vector_index_config.hnsw_multi_vector = Some(config);
     }
 }
 
@@ -205,6 +205,7 @@ impl Database {
                 algorithm: VectorAlgorithm::HNSW,
                 hnsw: Some(HnswConfig::default()),
                 multi_vector: None,
+                hnsw_multi_vector: None,
             },
         };
 
@@ -225,6 +226,28 @@ impl Database {
                 algorithm: VectorAlgorithm::MultiVector,
                 hnsw: None,
                 multi_vector: Some(crate::vector::MultiVectorIndexConfig::default()),
+                hnsw_multi_vector: None,
+            },
+        };
+
+        Self {
+            storage: Box::new(MemoryStorageEngine::new()),
+            vector_index: create_vector_index(&config.vector_index_config),
+            vector_index_config: config.vector_index_config.clone(),
+        }
+    }
+    
+    /// Creates a new in-memory database with HNSW-based multi-vector index (optimized for token-level embeddings)
+    pub fn in_memory_with_hnsw_multi_vector() -> Self {
+        let config = DatabaseConfig {
+            storage_type: StorageType::Memory,
+            storage_path: None,
+            cache_size: 100,
+            vector_index_config: VectorIndexConfig {
+                algorithm: VectorAlgorithm::HnswMultiVector,
+                hnsw: None,
+                multi_vector: None,
+                hnsw_multi_vector: Some(crate::vector::HnswMultiVectorConfig::default()),
             },
         };
 
@@ -250,6 +273,7 @@ impl Database {
                 algorithm: VectorAlgorithm::HNSW,
                 hnsw: Some(HnswConfig::default()),
                 multi_vector: None,
+                hnsw_multi_vector: None,
             },
         };
 
@@ -266,6 +290,24 @@ impl Database {
                 algorithm: VectorAlgorithm::MultiVector,
                 hnsw: None,
                 multi_vector: Some(crate::vector::MultiVectorIndexConfig::default()),
+                hnsw_multi_vector: None,
+            },
+        };
+
+        Self::new(config)
+    }
+    
+    /// Creates a file-based database with a HNSW-based multi-vector index
+    pub fn file_based_with_hnsw_multi_vector<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let config = DatabaseConfig {
+            storage_type: StorageType::MultiFile,
+            storage_path: Some(path.as_ref().to_string_lossy().to_string()),
+            cache_size: 100,
+            vector_index_config: VectorIndexConfig {
+                algorithm: VectorAlgorithm::HnswMultiVector,
+                hnsw: None,
+                multi_vector: None,
+                hnsw_multi_vector: Some(crate::vector::HnswMultiVectorConfig::default()),
             },
         };
 
@@ -536,6 +578,33 @@ impl Database {
                     Err(EngramDbError::Vector(
                         "Empty multi-vector query".to_string(),
                     ))
+                }
+            }
+            VectorAlgorithm::HnswMultiVector => {
+                // Try to downcast to HnswMultiVectorIndex to use specialized search
+                if let Some(index) = self
+                    .vector_index
+                    .as_any()
+                    .downcast_ref::<crate::vector::HnswMultiVectorIndex>()
+                {
+                    // Use the specialized search method
+                    let results = index.search_multi_vector(multi_vector, limit, threshold)?;
+                    let mut memory_results = Vec::with_capacity(results.len());
+
+                    for (id, score) in results {
+                        // Load the corresponding memory node
+                        let memory = self.load(id)?;
+                        memory_results.push((memory, score));
+                    }
+
+                    Ok(memory_results)
+                } else {
+                    // Fallback to standard search with first vector
+                    if let Some(first_vector) = multi_vector.vectors().first() {
+                        self.search_by_vector(first_vector, limit, threshold)
+                    } else {
+                        Err(EngramDbError::Vector("Empty multi-vector query".to_string()))
+                    }
                 }
             }
             _ => {

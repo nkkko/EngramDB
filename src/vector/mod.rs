@@ -4,8 +4,8 @@
 //! similarity computations and retrieval by vector similarity.
 
 mod hnsw;
-mod multi_vector_index;
 mod hnsw_multi_vector_index;
+mod multi_vector_index;
 mod similarity;
 mod thread_safe;
 mod vector_index;
@@ -15,11 +15,9 @@ use crate::Result;
 use uuid::Uuid;
 
 pub use hnsw::{HnswConfig, HnswIndex};
+pub use hnsw_multi_vector_index::{HnswMultiVectorConfig, HnswMultiVectorIndex, PoolingStrategy};
 pub use multi_vector_index::{
     MultiVectorIndex, MultiVectorIndexConfig, MultiVectorSimilarityMethod,
-};
-pub use hnsw_multi_vector_index::{
-    HnswMultiVectorIndex, HnswMultiVectorConfig, PoolingStrategy,
 };
 pub use similarity::{cosine_similarity, dot_product, euclidean_distance};
 pub use thread_safe::{ThreadSafeDatabase, ThreadSafeDatabasePool};
@@ -62,12 +60,7 @@ pub trait VectorSearchIndex: Send + Sync {
     fn get(&self, id: Uuid) -> Option<&Vec<f32>>;
 
     /// Provides type identification for downcasting
-    fn as_any(&self) -> &dyn std::any::Any
-    where
-        Self: 'static + Sized,
-    {
-        self
-    }
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// Configuration for vector indices
@@ -114,7 +107,9 @@ pub fn create_vector_index(config: &VectorIndexConfig) -> Box<dyn VectorSearchIn
         }
         VectorAlgorithm::HnswMultiVector => {
             if let Some(hnsw_multi_vector_config) = &config.hnsw_multi_vector {
-                Box::new(HnswMultiVectorIndex::with_config(hnsw_multi_vector_config.clone()))
+                Box::new(HnswMultiVectorIndex::with_config(
+                    hnsw_multi_vector_config.clone(),
+                ))
             } else {
                 Box::new(HnswMultiVectorIndex::new())
             }
