@@ -33,14 +33,22 @@ impl VectorIndex {
     ///
     /// A Result indicating success or the specific error that occurred
     pub fn add(&mut self, node: &MemoryNode) -> Result<()> {
-        // Create a capacity-optimized vector to avoid over-allocation
-        let embeddings = node.embeddings();
-        let mut vec = Vec::with_capacity(embeddings.len());
-        vec.extend_from_slice(embeddings);
-        
-        // Insert or replace the embeddings for this node
-        self.embeddings.insert(node.id(), vec);
-        Ok(())
+        // Get embeddings from the node
+        if let Some(embeddings) = node.embeddings() {
+            // Create a capacity-optimized vector to avoid over-allocation
+            let mut vec = Vec::with_capacity(embeddings.len());
+            vec.extend_from_slice(embeddings);
+            
+            // Insert or replace the embeddings for this node
+            self.embeddings.insert(node.id(), vec);
+            Ok(())
+        } else {
+            // This is a multi-vector node, which we can't handle
+            Err(EngramDbError::Vector(format!(
+                "Cannot add multi-vector embeddings to single-vector index: {}",
+                node.id()
+            )))
+        }
     }
 
     /// Removes a memory node from the index

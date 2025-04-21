@@ -534,13 +534,21 @@ impl HnswIndex {
 // Implement the VectorSearchIndex trait for HnswIndex
 impl VectorSearchIndex for HnswIndex {
     fn add(&mut self, node: &MemoryNode) -> Result<()> {
-        // Create a capacity-optimized vector to avoid over-allocation
-        let embeddings = node.embeddings();
-        let mut vec = Vec::with_capacity(embeddings.len());
-        vec.extend_from_slice(embeddings);
-        
-        // Call the struct's add method with node ID and embeddings
-        self.add(node.id(), vec)
+        // Get embeddings from the node
+        if let Some(embeddings) = node.embeddings() {
+            // Create a capacity-optimized vector to avoid over-allocation
+            let mut vec = Vec::with_capacity(embeddings.len());
+            vec.extend_from_slice(embeddings);
+            
+            // Call the struct's add method with node ID and embeddings
+            self.add(node.id(), vec)
+        } else {
+            // This is a multi-vector node, which we can't handle
+            Err(EngramDbError::Vector(format!(
+                "Cannot add multi-vector embeddings to HNSW index: {}",
+                node.id()
+            )))
+        }
     }
     
     fn remove(&mut self, id: Uuid) -> Result<()> {
@@ -548,13 +556,21 @@ impl VectorSearchIndex for HnswIndex {
     }
     
     fn update(&mut self, node: &MemoryNode) -> Result<()> {
-        // Create a capacity-optimized vector to avoid over-allocation
-        let embeddings = node.embeddings();
-        let mut vec = Vec::with_capacity(embeddings.len());
-        vec.extend_from_slice(embeddings);
-        
-        // Call the struct's update method with node ID and embeddings
-        self.update(node.id(), vec)
+        // Get embeddings from the node
+        if let Some(embeddings) = node.embeddings() {
+            // Create a capacity-optimized vector to avoid over-allocation
+            let mut vec = Vec::with_capacity(embeddings.len());
+            vec.extend_from_slice(embeddings);
+            
+            // Call the struct's update method with node ID and embeddings
+            self.update(node.id(), vec)
+        } else {
+            // This is a multi-vector node, which we can't handle
+            Err(EngramDbError::Vector(format!(
+                "Cannot update multi-vector embeddings in HNSW index: {}",
+                node.id()
+            )))
+        }
     }
     
     fn search(&self, query: &[f32], limit: usize, threshold: f32) -> Result<Vec<(Uuid, f32)>> {

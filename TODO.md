@@ -62,6 +62,8 @@ transaction.commit()?; // Or transaction.rollback()?
   - [x] [P0] Fix HNSW implementation to handle thread-safety requirements (2025-04-15)
   - [x] [P0] Optimize borrowing patterns in HNSW similarity search (2025-04-15)
 - [x] [P1] Document HNSW implementation and usage in API reference (2025-04-11)
+- [ ] [P1] Implement native multi-vector support in vector indexing without flattening
+- [ ] [P1] Optimize memory usage in vector indices with deduplication and shared references
 - [ ] [P2] Add IVF (Inverted File Index) support for large-scale vector collections
 - [ ] [P2] Create product quantization for memory-efficient storage of vectors
 - [ ] [P1] Add hybrid indexing that combines exact and approximate methods
@@ -81,10 +83,12 @@ db.configure_index()
 ### 3. Thread Safety & Concurrency
 
 - [ ] [P0] Implement thread safety in EngramDB Database class
+  - [ ] Create ThreadSafeDatabase implementation using Arc and RwLock patterns
   - [ ] Make Database implement the Send and Sync traits in Rust
   - [ ] Ensure all internal fields are thread-safe with proper locking
   - [ ] Add tests for multi-threaded access patterns
   - [ ] Document thread safety guarantees
+  - [ ] Replace misleading Database::clone with explicit ownership semantics
 - [ ] [P1] Implement a connection pool for handling multiple clients
 - [ ] [P0] Add read/write locks at different granularity levels
 - [ ] [P1] Support concurrent readers with single writer pattern
@@ -97,6 +101,7 @@ db.configure_index()
 - [ ] [P2] Create execution plans optimized for different query patterns
 - [ ] [P1] Add query result caching for frequently accessed memories
 - [ ] [P1] Design and implement a custom query language for memory retrieval
+- [ ] [P2] Implement Okapi BM25 scoring for hybrid text relevance
 
 ```
 # Example of potential query language:
@@ -190,6 +195,32 @@ db.save(&engram)?;
 - [ ] [P2] Write comprehensive Python documentation and examples
 - [x] [P3] Add compatibility with popular Python ML libraries (numpy, pytorch, etc.) (2025-04-09)
 
+### 9.1 Python SDK (engramdb-py) Enhancements
+
+- [ ] [P1] Improve thread safety (critical fix)
+  - [ ] Fix Send/Sync issues in the Rust/PyO3 layer so Database is inherently thread-safe
+  - [ ] Make ThreadSafeDatabasePool the default and recommended way to instantiate the DB
+  - [ ] Improve documentation explaining thread safety for web frameworks (Flask/FastAPI)
+- [ ] [P1] Implement idiomatic Python API conventions
+  - [ ] Use standard Python types (list, dict) for inputs/outputs where appropriate
+  - [ ] Maintain support for NumPy arrays for efficient vector operations
+  - [ ] Apply consistent naming and parameter conventions across the API
+- [ ] [P1] Add first-class async support
+  - [ ] Implement async versions of all I/O operations
+  - [ ] Ensure compatibility with async frameworks (FastAPI, asyncio)
+  - [ ] Optimize for LangChain compatibility which heavily relies on async
+- [ ] [P2] Implement streaming for long-running operations
+  - [ ] Add streaming search results
+  - [ ] Support async iterators for large result sets
+- [ ] [P2] Improve error handling
+  - [ ] Use informative, standard Python exceptions
+  - [ ] Add detailed error messages and context
+  - [ ] Implement proper exception hierarchy
+- [ ] [P2] Simplified connection methods
+  - [ ] Support connection strings
+  - [ ] Add environment variable configuration
+  - [ ] Implement connection pooling with sensible defaults
+
 ### 10. Virtual Tables
 
 - [ ] [P3] Support external data sources
@@ -199,9 +230,33 @@ db.save(&engram)?;
 ### 12. Integration & API
 
 - [ ] [P0] Implement example of using EngramDB with a simple agent using the pydantic.ai agentic framework
+- [x] [P1] Implement RESTful API server using Rocket (2025-04-21)
+  - [x] Implement database management endpoints (2025-04-21)
+  - [x] Implement memory node CRUD operations (2025-04-21)
+  - [x] Implement vector search endpoints (2025-04-21)
+  - [x] Implement connection management (2025-04-21)
+  - [x] Add authentication and authorization (2025-04-21)
+  - [x] Set up OpenAPI documentation with Swagger UI (2025-04-21)
 - [ ] [P2] Implement Model Context Protocol (MCP) server for LLM integration
 - [ ] [P2] Create standardized API for RAG applications
-- [ ] [P3] Develop client libraries for common programming languages
+- [x] [P1] Develop SDK libraries that use the REST API (2025-04-21)
+  - [x] Create Python SDK (engramdb-client) (2025-04-21)
+    - [x] Implement client class with API connection management (2025-04-21)
+    - [x] Add database management operations (2025-04-21)
+    - [x] Add memory node CRUD operations (2025-04-21)
+    - [x] Add search and query capabilities (2025-04-21)
+    - [x] Add connection management (2025-04-21)
+    - [x] Add embedding operations (2025-04-21)
+    - [x] Write comprehensive documentation and examples (2025-04-21)
+  - [x] Create TypeScript SDK (@engramdb/client) (2025-04-21)
+    - [x] Implement client class with API connection management (2025-04-21)
+    - [x] Add database management operations (2025-04-21)
+    - [x] Add memory node CRUD operations (2025-04-21)
+    - [x] Add search and query capabilities (2025-04-21)
+    - [x] Add connection management (2025-04-21)
+    - [x] Add embedding operations (2025-04-21)
+    - [x] Write comprehensive documentation and examples (2025-04-21)
+  - [x] Ensure compatibility with existing PyO3 bindings API (2025-04-21)
 - [ ] [P3] Implement multimodal memory support (images, audio, video)
 - [ ] [P1] Add inter-agentic collaboration features for multi-agent orchestration
 
@@ -224,7 +279,10 @@ db.save(&engram)?;
 - [x] [P1] Create basic CLI for EngramDB database management (2025-04-07)
 - [ ] [P1] Improve storage engine error handling and robustness
 - [ ] [P2] Standardize types across the API (e.g., consistent use of f32/f64)
-- [ ] [P2] Enhance connection model to support bidirectional relationships more naturally
+- [ ] [P1] Refactor connection management
+  - [ ] Extract common relationship type conversion logic to reduce code duplication
+  - [ ] Enhance connection model to support bidirectional relationships more naturally
+  - [ ] Implement proper methods for connection management in MemoryNode
 - [ ] [P2] Add support for human-readable aliases or labels for memory nodes
 - [ ] [P1] Extend query capabilities with filtering by multiple attributes
 - [ ] [P2] Add optional schema validation for attributes
@@ -239,10 +297,17 @@ db.save(&engram)?;
   - ✓ Implement HNSW algorithm for faster vector search 
   - ✓ Fix thread-safety and borrowing patterns in HNSW implementation
   - Add read/write locks at different granularity levels
+  - Create ThreadSafeDatabase implementation with Arc/RwLock patterns
+  - Replace misleading Database::clone with explicit ownership semantics
   - Implement example using EngramDB with pydantic.ai agentic framework
 - Critical [P1] tasks:
   - Transaction support (without isolation levels)
   - Read/write concurrency
+  - Implement native multi-vector support without flattening
+  - Optimize memory usage in vector indices
+  - Refactor connection management and relationship handling
+  - ✓ Implement RESTful API server using Rocket (2025-04-21)
+  - ✓ Develop SDK libraries that use the REST API (2025-04-21)
   - Custom query language for memory retrieval
   - Improve storage engine error handling
   - Extend query capabilities
@@ -250,6 +315,14 @@ db.save(&engram)?;
 
 ### Phase 2 (Mid-term)
 - Remaining [P1] tasks
+  - Improve thread safety in Python SDK (critical fix)
+  - Implement idiomatic Python API conventions
+  - Add first-class async support for Python SDK
+  - Transaction support (without isolation levels)
+  - Read/write concurrency
+  - Implement native multi-vector support without flattening
+  - Optimize memory usage in vector indices
+  - Refactor connection management and relationship handling
 - [P2] tasks for query optimization and performance
 - Standardize types across API
 - Enhance connection model
@@ -276,5 +349,16 @@ db.save(&engram)?;
 - [x] [P1] Create Pythonic wrapper classes for MemoryNode and Database (2025-04-01)
 - [x] [P1] Create basic CLI for EngramDB database management (2025-04-07)
 - [x] [P1] Document HNSW implementation and usage in API reference (2025-04-11)
+- [x] [P1] Implement RESTful API server using Rocket (2025-04-21)
+  - [x] Implement database management endpoints (2025-04-21)
+  - [x] Implement memory node CRUD operations (2025-04-21)
+  - [x] Implement vector search endpoints (2025-04-21)
+  - [x] Implement connection management (2025-04-21)
+  - [x] Add authentication and authorization (2025-04-21)
+  - [x] Set up OpenAPI documentation with Swagger UI (2025-04-21)
+- [x] [P1] Develop SDK libraries that use the REST API (2025-04-21)
+  - [x] Create Python SDK (engramdb-client) (2025-04-21)
+  - [x] Create TypeScript SDK (@engramdb/client) (2025-04-21)
+  - [x] Ensure compatibility with existing PyO3 bindings API (2025-04-21)
 - [x] [P2] Implement helper functions for generating embeddings from text (2025-04-09)
 - [x] [P2] Add support for multiple embedding models (2025-04-09)

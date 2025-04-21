@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "engramdb-client"
+version = "0.1.0"
+description = "API client for EngramDB"
+readme = "README.md"
+authors = [
+    {name = "Niko", email = "engramdb@disequi.com"}
+]
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "requests>=2.25.0",
+    "numpy>=1.20.0",
+    "pydantic>=2.0.0",
+    "httpx>=0.23.0",
+]
+
+[project.urls]
+Repository = "https://github.com/nkkko/engramdb"
+Documentation = "https://github.com/nkkko/engramdb/sdks/python-client/README.md"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
+    "pytest-cov>=3.0.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "isort>=5.0.0",
+    "ruff>=0.0.100",
+]
+
+[tool.setuptools]
+packages = ["engramdb_client"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

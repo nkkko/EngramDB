@@ -7,6 +7,7 @@ mod similarity;
 mod vector_index;
 mod hnsw;
 mod thread_safe;
+mod multi_vector_index;
 
 use crate::core::MemoryNode;
 use crate::Result;
@@ -16,6 +17,9 @@ pub use similarity::{cosine_similarity, dot_product, euclidean_distance};
 pub use vector_index::VectorIndex;
 pub use hnsw::{HnswIndex, HnswConfig};
 pub use thread_safe::{ThreadSafeDatabase, ThreadSafeDatabasePool};
+pub use multi_vector_index::{
+    MultiVectorIndex, MultiVectorIndexConfig, MultiVectorSimilarityMethod
+};
 
 /// Available vector index algorithms
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,6 +28,8 @@ pub enum VectorAlgorithm {
     Linear,
     /// Hierarchical Navigable Small World
     HNSW,
+    /// Multi-vector linear search (for ColBERT/ColPali-style)
+    MultiVector,
 }
 
 /// Common trait for vector indices
@@ -57,6 +63,8 @@ pub struct VectorIndexConfig {
     pub algorithm: VectorAlgorithm,
     /// HNSW-specific configuration
     pub hnsw: Option<HnswConfig>,
+    /// Multi-vector-specific configuration
+    pub multi_vector: Option<MultiVectorIndexConfig>,
 }
 
 impl Default for VectorIndexConfig {
@@ -64,6 +72,7 @@ impl Default for VectorIndexConfig {
         Self {
             algorithm: VectorAlgorithm::Linear,
             hnsw: None,
+            multi_vector: None,
         }
     }
 }
@@ -77,6 +86,13 @@ pub fn create_vector_index(config: &VectorIndexConfig) -> Box<dyn VectorSearchIn
                 Box::new(HnswIndex::with_config(hnsw_config))
             } else {
                 Box::new(HnswIndex::new())
+            }
+        },
+        VectorAlgorithm::MultiVector => {
+            if let Some(multi_vector_config) = &config.multi_vector {
+                Box::new(MultiVectorIndex::with_config(multi_vector_config.clone()))
+            } else {
+                Box::new(MultiVectorIndex::new())
             }
         }
     }

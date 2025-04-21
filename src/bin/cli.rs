@@ -150,12 +150,17 @@ fn print_memory(id: Uuid, memory: &MemoryNode) {
     }
     
     // Print embeddings preview
-    let embeddings = memory.embeddings();
-    let preview = if embeddings.len() <= 5 {
-        format!("{:?}", embeddings)
+    let preview = if let Some(embeddings) = memory.embeddings() {
+        if embeddings.len() <= 5 {
+            format!("{:?}", embeddings)
+        } else {
+            format!("[{:.2}, {:.2}, {:.2}, ... {} more values]", 
+                    embeddings[0], embeddings[1], embeddings[2], embeddings.len() - 3)
+        }
+    } else if memory.is_multi_vector() {
+        "Multi-vector embeddings (ColBERT/ColPali-style)".to_string()
     } else {
-        format!("[{:.2}, {:.2}, {:.2}, ... {} more values]", 
-                embeddings[0], embeddings[1], embeddings[2], embeddings.len() - 3)
+        "No embeddings".to_string()
     };
     
     println!("║ Embeddings: {}", preview);

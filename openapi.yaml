@@ -1,0 +1,877 @@
+openapi: 3.1.0
+info:
+  title: EngramDB API
+  description: |
+    EngramDB is a specialized database system for agent memory management, 
+    optimized for storing, retrieving, and querying vector embeddings with 
+    rich connections and attributes.
+  version: 0.1.0
+  contact:
+    name: EngramDB Team
+    url: https://github.com/nkkko/engramdb
+servers:
+  - url: https://api.engramdb.io/v1
+    description: Production server
+  - url: http://localhost:8000/v1
+    description: Local development server
+components:
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      example: "d8f7a2e5-1c3b-4a6d-9e8f-5b7a2c3d1e0f"
+    Vector:
+      type: array
+      items:
+        type: number
+        format: float
+      example: [0.1, 0.2, 0.3, 0.4]
+    AttributeValue:
+      oneOf:
+        - type: string
+        - type: number
+          format: float
+        - type: integer
+        - type: boolean
+        - type: object
+          additionalProperties: true
+        - type: array
+          items:
+            $ref: '#/components/schemas/AttributeValue'
+    Attributes:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/AttributeValue'
+      example:
+        category: "meeting"
+        importance: 0.85
+        tags: ["work", "project-x", "planning"]
+    RelationshipType:
+      type: string
+      enum:
+        - Association
+        - Causation
+        - Sequence
+        - Similarity
+        - Parent
+        - Child
+        - Reference
+        - Custom
+      example: "Association"
+    Connection:
+      type: object
+      required:
+        - target_id
+        - type
+      properties:
+        target_id:
+          $ref: '#/components/schemas/UUID'
+        type:
+          $ref: '#/components/schemas/RelationshipType'
+        strength:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 1.0
+          example: 0.85
+        custom_type:
+          type: string
+          example: "PartOf"
+          description: "Custom relationship type name when type is 'Custom'"
+    ConnectionInfo:
+      type: object
+      required:
+        - source_id
+        - target_id
+        - type
+      properties:
+        source_id:
+          $ref: '#/components/schemas/UUID'
+        target_id:
+          $ref: '#/components/schemas/UUID'
+        type:
+          $ref: '#/components/schemas/RelationshipType'
+        strength:
+          type: number
+          format: float
+          example: 0.85
+        custom_type:
+          type: string
+          example: "PartOf"
+    MemoryNode:
+      type: object
+      required:
+        - id
+        - vector
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        vector:
+          $ref: '#/components/schemas/Vector'
+        attributes:
+          $ref: '#/components/schemas/Attributes'
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        content:
+          type: string
+          description: "Optional text content associated with this memory"
+    MemoryNodeCreate:
+      type: object
+      required:
+        - vector
+      properties:
+        vector:
+          $ref: '#/components/schemas/Vector'
+        attributes:
+          $ref: '#/components/schemas/Attributes'
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        content:
+          type: string
+          description: "Optional text content associated with this memory"
+    MemoryNodeUpdate:
+      type: object
+      properties:
+        vector:
+          $ref: '#/components/schemas/Vector'
+        attributes:
+          $ref: '#/components/schemas/Attributes'
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        content:
+          type: string
+    MemoryNodeContentCreate:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+        model:
+          type: string
+          default: "default"
+          description: "Embedding model to use"
+        attributes:
+          $ref: '#/components/schemas/Attributes'
+    SearchQuery:
+      type: object
+      properties:
+        vector:
+          $ref: '#/components/schemas/Vector'
+        content:
+          type: string
+          description: "Text to convert to embedding vector for search"
+        model:
+          type: string
+          default: "default"
+          description: "Embedding model to use for content-based search"
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeFilter'
+        limit:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+        threshold:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.0
+          description: "Minimum similarity threshold (0.0 to 1.0)"
+        include_vectors:
+          type: boolean
+          default: false
+          description: "Whether to include vector embeddings in results"
+        include_connections:
+          type: boolean
+          default: false
+          description: "Whether to include connections in results"
+    AttributeFilter:
+      type: object
+      required:
+        - field
+        - operation
+      properties:
+        field:
+          type: string
+          example: "category"
+        operation:
+          type: string
+          enum:
+            - equals
+            - not_equals
+            - greater_than
+            - less_than
+            - greater_or_equal
+            - less_or_equal
+            - contains
+            - starts_with
+            - ends_with
+            - exists
+        value:
+          $ref: '#/components/schemas/AttributeValue'
+    DatabaseConfig:
+      type: object
+      properties:
+        storage_type:
+          type: string
+          enum:
+            - Memory
+            - MultiFile
+            - SingleFile
+          default: "MultiFile"
+        storage_path:
+          type: string
+          example: "/data/engramdb"
+        cache_size:
+          type: integer
+          default: 100
+          example: 100
+        vector_algorithm:
+          type: string
+          enum:
+            - Linear
+            - HNSW
+          default: "HNSW"
+        hnsw_config:
+          type: object
+          properties:
+            m:
+              type: integer
+              default: 16
+              description: "Maximum number of connections per node"
+            ef_construction:
+              type: integer
+              default: 100
+              description: "Size of dynamic candidate list during construction"
+            ef:
+              type: integer
+              default: 10
+              description: "Size of dynamic candidate list during search"
+            level_multiplier:
+              type: number
+              format: float
+              default: 1.0
+            max_level:
+              type: integer
+              default: 16
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+paths:
+  /databases:
+    get:
+      summary: List all databases
+      operationId: listDatabases
+      tags:
+        - Database Management
+      responses:
+        '200':
+          description: List of available databases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    storage_type:
+                      type: string
+                    node_count:
+                      type: integer
+                    created_at:
+                      type: string
+                      format: date-time
+        '401':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+    post:
+      summary: Create a new database
+      operationId: createDatabase
+      tags:
+        - Database Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: "agent_memory"
+                config:
+                  $ref: '#/components/schemas/DatabaseConfig'
+      responses:
+        '201':
+          description: Database created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  config:
+                    $ref: '#/components/schemas/DatabaseConfig'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '409':
+          description: Database already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /databases/{database_id}:
+    parameters:
+      - name: database_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get database information
+      operationId: getDatabase
+      tags:
+        - Database Management
+      responses:
+        '200':
+          description: Database information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  storage_type:
+                    type: string
+                  node_count:
+                    type: integer
+                  created_at:
+                    type: string
+                    format: date-time
+                  config:
+                    $ref: '#/components/schemas/DatabaseConfig'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+    delete:
+      summary: Delete a database
+      operationId: deleteDatabase
+      tags:
+        - Database Management
+      responses:
+        '204':
+          description: Database deleted successfully
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /databases/{database_id}/nodes:
+    parameters:
+      - name: database_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List all memory nodes
+      operationId: listNodes
+      tags:
+        - Memory Nodes
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: include_vectors
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: include_connections
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of memory nodes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MemoryNode'
+                  total:
+                    type: integer
+                  offset:
+                    type: integer
+                  limit:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+    post:
+      summary: Create a new memory node
+      operationId: createNode
+      tags:
+        - Memory Nodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryNodeCreate'
+      responses:
+        '201':
+          description: Memory node created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryNode'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /databases/{database_id}/nodes/from_content:
+    parameters:
+      - name: database_id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Create a memory node from text content
+      operationId: createNodeFromContent
+      tags:
+        - Memory Nodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryNodeContentCreate'
+      responses:
+        '201':
+          description: Memory node created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryNode'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /databases/{database_id}/nodes/{node_id}:
+    parameters:
+      - name: database_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
+    get:
+      summary: Get a memory node
+      operationId: getNode
+      tags:
+        - Memory Nodes
+      parameters:
+        - name: include_vectors
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: include_connections
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Memory node details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryNode'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+    put:
+      summary: Update a memory node
+      operationId: updateNode
+      tags:
+        - Memory Nodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryNodeUpdate'
+      responses:
+        '200':
+          description: Memory node updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryNode'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+    delete:
+      summary: Delete a memory node
+      operationId: deleteNode
+      tags:
+        - Memory Nodes
+      responses:
+        '204':
+          description: Memory node deleted successfully
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /databases/{database_id}/search:
+    parameters:
+      - name: database_id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Search for similar memory nodes
+      operationId: searchNodes
+      tags:
+        - Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchQuery'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        node:
+                          $ref: '#/components/schemas/MemoryNode'
+                        similarity:
+                          type: number
+                          format: float
+                  total:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /databases/{database_id}/nodes/{node_id}/connections:
+    parameters:
+      - name: database_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
+    get:
+      summary: Get connections for a memory node
+      operationId: getNodeConnections
+      tags:
+        - Connections
+      responses:
+        '200':
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectionInfo'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+    post:
+      summary: Create a connection between memory nodes
+      operationId: createConnection
+      tags:
+        - Connections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - target_id
+                - type
+              properties:
+                target_id:
+                  $ref: '#/components/schemas/UUID'
+                type:
+                  $ref: '#/components/schemas/RelationshipType'
+                strength:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 1
+                  default: 1.0
+                custom_type:
+                  type: string
+                bidirectional:
+                  type: boolean
+                  default: false
+                  description: "Whether to create a connection in both directions"
+      responses:
+        '201':
+          description: Connection created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionInfo'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /databases/{database_id}/nodes/{source_id}/connections/{target_id}:
+    parameters:
+      - name: database_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
+      - name: target_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
+    delete:
+      summary: Remove a connection between memory nodes
+      operationId: deleteConnection
+      tags:
+        - Connections
+      parameters:
+        - name: bidirectional
+          in: query
+          schema:
+            type: boolean
+            default: false
+            description: "Whether to remove connections in both directions"
+      responses:
+        '204':
+          description: Connection removed successfully
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /models:
+    get:
+      summary: List available embedding models
+      operationId: listModels
+      tags:
+        - Embeddings
+      responses:
+        '200':
+          description: List of available embedding models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    dimensions:
+                      type: integer
+                    description:
+                      type: string
+                    provider:
+                      type: string
+                    model_type:
+                      type: string
+                      enum:
+                        - single_vector
+                        - multi_vector
+        '401':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+          
+  /generate_embedding:
+    post:
+      summary: Generate embedding from text
+      operationId: generateEmbedding
+      tags:
+        - Embeddings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                model:
+                  type: string
+                  default: "default"
+      responses:
+        '200':
+          description: Generated embedding
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vector:
+                    $ref: '#/components/schemas/Vector'
+                  model:
+                    type: string
+                  dimensions:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '500':
+          $ref: '#/components/responses/Error'

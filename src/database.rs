@@ -156,6 +156,7 @@ impl Database {
             vector_index_config: VectorIndexConfig {
                 algorithm: VectorAlgorithm::HNSW,
                 hnsw: Some(HnswConfig::default()),
+                multi_vector: None,
             },
         };
         
@@ -174,6 +175,7 @@ impl Database {
             vector_index_config: VectorIndexConfig {
                 algorithm: VectorAlgorithm::HNSW,
                 hnsw: Some(HnswConfig::default()),
+                multi_vector: None,
             },
         };
         

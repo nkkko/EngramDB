@@ -24,6 +24,7 @@ EngramDB is a specialized database designed for agent memory management. It enab
 - **Memory Evolution**: Track memory changes over time with temporal versioning
 - **First-class Python Bindings**: Seamless integration with ML/AI applications
 - **Web Interface**: Browser-based visualization and interaction
+- **RESTful API Server**: HTTP-based API with OpenAPI specification for easy integration
 
 ## Getting Started
 
@@ -31,6 +32,7 @@ EngramDB is a specialized database designed for agent memory management. It enab
 
 - Rust 2021 edition (for Rust development)
 - Python 3.7+ (for Python bindings)
+- Node.js 16+ (for TypeScript client)
 - Flask (for web interface)
 
 ### Installation
@@ -43,7 +45,9 @@ cd engramdb
 cargo build
 ```
 
-#### Python Package
+#### Python Integration
+
+**Option 1: PyO3 Native Bindings** (recommended for performance)
 
 Install from PyPI:
 ```bash
@@ -57,9 +61,32 @@ pip install maturin
 maturin develop
 ```
 
+**Option 2: Python API Client** (recommended for distributed deployments)
+
+```bash
+# Install from PyPI
+pip install engramdb-client
+
+# Or build from source
+cd engramdb/sdks/python-client
+pip install -e .
+```
+
+#### TypeScript/JavaScript Client
+
+```bash
+# Install from npm
+npm install @engramdb/client
+
+# Or build from source
+cd engramdb/sdks/typescript-client
+npm install
+npm run build
+```
+
 ### Examples
 
-EngramDB includes examples in both Rust and Python to help you get started.
+EngramDB includes examples in multiple languages to help you get started.
 
 #### Rust Examples
 
@@ -70,7 +97,7 @@ cargo run --example memory_graph
 cargo run --example memory_and_file_storage
 ```
 
-#### Python Examples
+#### Python Native Bindings Examples
 
 ```bash
 # Run Python examples directly
@@ -80,12 +107,30 @@ python memory_graph.py
 python agent_memory.py
 ```
 
+#### Python API Client Examples
+
+```bash
+# Run Python client examples
+cd sdks/python-client/examples
+python basic_usage.py
+```
+
+#### TypeScript Client Examples
+
+```bash
+# Build and run TypeScript examples
+cd sdks/typescript-client
+npm install
+npx ts-node examples/basic-usage.ts
+```
+
 Available examples demonstrate:
 - Basic usage operations (create, save, retrieve memories)
 - Working with in-memory and file-based storage
 - Creating knowledge graphs with connected memories
 - Building unified databases with different memory types
 - Implementing agent memory systems
+- Connecting to the REST API server
 
 #### Web Interface
 
@@ -105,6 +150,19 @@ python app_full.py
 ```
 
 Access the interface at: http://localhost:8082
+
+#### REST API Server
+
+Start the API server:
+```bash
+# Run with default settings
+cargo run --bin engramdb-server --features api-server
+
+# Run with custom settings
+ENGRAMDB_API_PORT=9000 ENGRAMDB_API_HOST=127.0.0.1 ENGRAMDB_JWT_SECRET=mysecretkey cargo run --bin engramdb-server --features api-server
+```
+
+The OpenAPI specification is available at `/openapi.yaml`, and Swagger UI documentation can be accessed at `/swagger` when the server is running.
 
 ## Usage Examples
 
@@ -136,7 +194,7 @@ for (memory_id, similarity) in &results {
 }
 ```
 
-### Python API
+### Python API (Native Bindings)
 
 ```python
 import engramdb
@@ -164,6 +222,65 @@ for memory_id, similarity in results:
     print(f"Memory: {memory.get_attribute('title')}, Similarity: {similarity:.4f}")
 ```
 
+### Python API Client
+
+```python
+from engramdb_client import EngramClient
+import numpy as np
+
+# Initialize the client
+client = EngramClient(api_url="http://localhost:8000/v1")
+
+# Create a database
+db = client.create_database("my_database")
+
+# Create a memory node with embeddings
+vector = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
+node = db.create_node(vector=vector)
+node.set_attribute("title", "Important information")
+node.set_attribute("importance", 0.8)
+node.save()
+
+# Search for similar memories
+results = db.search(vector=vector, limit=5, threshold=0.0)
+
+# Process results
+for node, similarity in results:
+    print(f"Memory: {node.get_attribute('title')}, Similarity: {similarity:.4f}")
+```
+
+### TypeScript API Client
+
+```typescript
+import { EngramClient } from '@engramdb/client';
+
+// Initialize the client
+const client = new EngramClient({ apiUrl: 'http://localhost:8000/v1' });
+
+async function example() {
+  // Create a database
+  const db = await client.createDatabase('my_database');
+
+  // Create a memory node with vector
+  const vector = [0.1, 0.2, 0.3, 0.4];
+  const node = await db.createNode({
+    vector,
+    attributes: {
+      title: 'Important information',
+      importance: 0.8,
+    },
+  });
+
+  // Search for similar memories
+  const results = await db.search({ vector, limit: 5, threshold: 0.0 });
+
+  // Process results
+  for (const { node, similarity } of results) {
+    console.log(`Memory: ${node.attributes.title}, Similarity: ${similarity.toFixed(4)}`);
+  }
+}
+```
+
 ## Architecture
 
 EngramDB's architecture consists of:
@@ -179,12 +296,26 @@ EngramDB's architecture consists of:
    - `FileStorageEngine`: Persistent file-based storage
 
 3. **Vector Index**: Efficient similarity search
+   - Linear index for small datasets
+   - HNSW index for large-scale similarity search
 
 4. **Query System**: Flexible filters and constraints
 
-5. **Language Bindings**:
+5. **Language Integrations**:
    - Core implementation in Rust
    - Python bindings via PyO3
+   - Python client SDK
+   - TypeScript/JavaScript client SDK
+
+6. **API Server**:
+   - RESTful HTTP interface using Rocket
+   - OpenAPI specification and Swagger documentation
+   - JWT and API key authentication
+
+7. **Deployment Options**:
+   - Embedded library (native performance)
+   - Client-server (distributed deployment)
+   - Microservices (cloud architecture)
 
 ## Benchmarking
 
@@ -230,6 +361,19 @@ python -m venv venv_app
 source venv_app/bin/activate
 pip install -r requirements.txt
 python app_full.py
+```
+
+### API Server Development
+
+```bash
+# Build with the API server feature
+cargo build --features api-server
+
+# Run the server with hot-reloading (requires cargo-watch)
+cargo watch -x 'run --bin engramdb-server --features api-server'
+
+# Generate OpenAPI documentation
+# The OpenAPI spec is available at /openapi.yaml and Swagger UI at /swagger
 ```
 
 ## License

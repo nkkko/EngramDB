@@ -12,6 +12,10 @@ pub mod storage;
 pub mod utils;
 pub mod vector;
 
+// API module for REST server
+#[cfg(feature = "api-server")]
+pub mod api;
+
 pub use crate::core::MemoryNode;
 pub use crate::core::connection::RelationshipType;
 pub use crate::database::Database;
