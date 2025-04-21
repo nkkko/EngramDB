@@ -4,23 +4,62 @@
 
 use std::sync::{Arc, RwLock, Mutex};
 use crate::core::MemoryNode;
-use crate::database::Database;
+use crate::database::{Database, DatabaseConfig, ConnectionInfo, StorageType};
 use crate::error::EngramDbError;
 use crate::Result;
 use std::path::Path;
 use uuid::Uuid;
+use crate::query::QueryBuilder;
+use crate::vector::{VectorIndexConfig, VectorAlgorithm, HnswConfig};
 
 /// A thread-safe wrapper for the EngramDB Database
 ///
 /// This struct wraps the Database with synchronization primitives to make it
-/// safe to share between threads. It implements Send and Sync traits.
+/// safe to share between threads. It provides the same functionality as the Database,
+/// but with proper thread safety through Arc and RwLock.
 pub struct ThreadSafeDatabase {
     /// The inner database protected by a RwLock for concurrent access
     inner: Arc<RwLock<Database>>,
 }
 
 impl ThreadSafeDatabase {
+    /// Creates a new thread-safe database with the given configuration
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Configuration options for the database
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe Database instance, or an error if initialization failed
+    pub fn new(config: DatabaseConfig) -> Result<Self> {
+        match Database::new(config) {
+            Ok(db) => Ok(Self {
+                inner: Arc::new(RwLock::new(db)),
+            }),
+            Err(e) => Err(e),
+        }
+    }
+    
+    /// Creates a new thread-safe database with default configuration
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe Database instance with default configuration
+    pub fn default() -> Result<Self> {
+        match Database::default() {
+            Ok(db) => Ok(Self {
+                inner: Arc::new(RwLock::new(db)),
+            }),
+            Err(e) => Err(e),
+        }
+    }
+    
     /// Creates a new thread-safe in-memory database
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe in-memory Database instance
     pub fn in_memory() -> Self {
         let db = Database::in_memory();
         Self {
@@ -29,6 +68,10 @@ impl ThreadSafeDatabase {
     }
     
     /// Creates a new thread-safe in-memory database with HNSW index
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe in-memory Database instance with HNSW index
     pub fn in_memory_with_hnsw() -> Self {
         let db = Database::in_memory_with_hnsw();
         Self {
@@ -37,6 +80,14 @@ impl ThreadSafeDatabase {
     }
     
     /// Creates a new thread-safe file-based database
+    ///
+    /// # Arguments
+    ///
+    /// * `dir` - Path to the storage directory
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe file-based Database instance
     pub fn file_based<P: AsRef<Path>>(dir: P) -> Result<Self> {
         match Database::file_based(dir) {
             Ok(db) => Ok(Self {
@@ -47,6 +98,14 @@ impl ThreadSafeDatabase {
     }
     
     /// Creates a new thread-safe single-file database
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - Path to the database file
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe single-file Database instance
     pub fn single_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         match Database::single_file(file_path) {
             Ok(db) => Ok(Self {
@@ -57,12 +116,37 @@ impl ThreadSafeDatabase {
     }
     
     /// Creates a thread-safe file-based database with HNSW index
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the storage directory
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe file-based Database instance with HNSW index
     pub fn file_based_with_hnsw<P: AsRef<Path>>(path: P) -> Result<Self> {
         match Database::file_based_with_hnsw(path) {
             Ok(db) => Ok(Self {
                 inner: Arc::new(RwLock::new(db)),
             }),
             Err(e) => Err(e),
+        }
+    }
+    
+    /// Creates a new thread-safe database from an existing Database instance
+    ///
+    /// This is useful for converting an existing Database into a thread-safe version.
+    ///
+    /// # Arguments
+    ///
+    /// * `database` - An existing Database instance
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe Database instance wrapping the provided Database
+    pub fn from_database(database: Database) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(database)),
         }
     }
 
@@ -184,11 +268,198 @@ impl ThreadSafeDatabase {
         }
     }
     
+    /// Creates a query builder for this database
+    ///
+    /// This method creates a thread-safe query builder that can be used to
+    /// construct complex queries against the database.
+    ///
+    /// # Returns
+    ///
+    /// A thread-safe query builder for this database
+    pub fn query(&self) -> ThreadSafeDatabaseQueryBuilder {
+        ThreadSafeDatabaseQueryBuilder {
+            database: self,
+        }
+    }
+    
+    /// Gets a cloned Arc to the inner database RwLock
+    ///
+    /// This is an advanced method that allows direct access to the inner
+    /// database instance. Use with caution.
+    ///
+    /// # Returns
+    ///
+    /// A clone of the Arc containing the RwLock-protected database
+    pub fn get_inner_arc(&self) -> Arc<RwLock<Database>> {
+        self.inner.clone()
+    }
+    
     /// Creates a new database connection pool for multi-threaded use
     ///
     /// This is useful when you need multiple database instances in different threads.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the database storage location
+    ///
+    /// # Returns
+    ///
+    /// A connection pool for creating thread-safe database connections
     pub fn create_connection_pool<P: AsRef<Path>>(path: P) -> Result<ThreadSafeDatabasePool> {
         Ok(ThreadSafeDatabasePool::new(path)?)
+    }
+}
+
+/// A thread-safe query builder for the ThreadSafeDatabase
+///
+/// This struct provides a builder pattern for constructing queries against
+/// a thread-safe database instance.
+pub struct ThreadSafeDatabaseQueryBuilder<'a> {
+    database: &'a ThreadSafeDatabase,
+}
+
+impl<'a> ThreadSafeDatabaseQueryBuilder<'a> {
+    /// Sets the query vector for similarity search
+    ///
+    /// # Arguments
+    ///
+    /// * `vector` - The vector to compare against
+    ///
+    /// # Returns
+    ///
+    /// A thread-safe query with the specified vector
+    pub fn with_vector(self, vector: Vec<f32>) -> ThreadSafeDatabaseQuery<'a> {
+        ThreadSafeDatabaseQuery {
+            builder: QueryBuilder::new().with_vector(vector),
+            database: self.database,
+        }
+    }
+    
+    /// Restricts the query to only consider the specified IDs
+    ///
+    /// # Arguments
+    ///
+    /// * `ids` - The IDs to include in the query
+    ///
+    /// # Returns
+    ///
+    /// A thread-safe query restricted to the specified IDs
+    pub fn with_ids(self, ids: Vec<Uuid>) -> ThreadSafeDatabaseQuery<'a> {
+        ThreadSafeDatabaseQuery {
+            builder: QueryBuilder::new().with_include_ids(ids),
+            database: self.database,
+        }
+    }
+    
+    /// Creates an empty query
+    ///
+    /// # Returns
+    ///
+    /// An empty thread-safe query
+    pub fn empty(self) -> ThreadSafeDatabaseQuery<'a> {
+        ThreadSafeDatabaseQuery {
+            builder: QueryBuilder::new(),
+            database: self.database,
+        }
+    }
+}
+
+/// A thread-safe database query with builder methods for adding constraints
+///
+/// This struct wraps the standard QueryBuilder with thread-safe database access.
+pub struct ThreadSafeDatabaseQuery<'a> {
+    builder: QueryBuilder,
+    database: &'a ThreadSafeDatabase,
+}
+
+impl<'a> ThreadSafeDatabaseQuery<'a> {
+    /// Adds an attribute filter to the query
+    ///
+    /// # Arguments
+    ///
+    /// * `filter` - The attribute filter to add
+    ///
+    /// # Returns
+    ///
+    /// The query with the added filter
+    pub fn with_attribute_filter(mut self, filter: crate::query::AttributeFilter) -> Self {
+        self.builder = self.builder.with_attribute_filter(filter);
+        self
+    }
+    
+    /// Adds a temporal filter to the query
+    ///
+    /// # Arguments
+    ///
+    /// * `filter` - The temporal filter to add
+    ///
+    /// # Returns
+    ///
+    /// The query with the added filter
+    pub fn with_temporal_filter(mut self, filter: crate::query::TemporalFilter) -> Self {
+        self.builder = self.builder.with_temporal_filter(filter);
+        self
+    }
+    
+    /// Sets the similarity threshold for vector queries
+    ///
+    /// # Arguments
+    ///
+    /// * `threshold` - The minimum similarity threshold (0.0 to 1.0)
+    ///
+    /// # Returns
+    ///
+    /// The query with the specified threshold
+    pub fn with_similarity_threshold(mut self, threshold: f32) -> Self {
+        self.builder = self.builder.with_similarity_threshold(threshold);
+        self
+    }
+    
+    /// Sets the maximum number of results to return
+    ///
+    /// # Arguments
+    ///
+    /// * `limit` - The maximum number of results
+    ///
+    /// # Returns
+    ///
+    /// The query with the specified limit
+    pub fn with_limit(mut self, limit: usize) -> Self {
+        self.builder = self.builder.with_limit(limit);
+        self
+    }
+    
+    /// Adds IDs to exclude from the results
+    ///
+    /// # Arguments
+    ///
+    /// * `ids` - The IDs to exclude
+    ///
+    /// # Returns
+    ///
+    /// The query with the specified exclusions
+    pub fn with_exclude_ids(mut self, ids: Vec<Uuid>) -> Self {
+        self.builder = self.builder.with_exclude_ids(ids);
+        self
+    }
+    
+    /// Executes the query and returns the matching memory nodes
+    ///
+    /// # Returns
+    ///
+    /// A vector of matching memory nodes, or an error if execution failed
+    pub fn execute(self) -> Result<Vec<MemoryNode>> {
+        // Acquire a read lock on the database
+        let db_guard = match self.database.inner.read() {
+            Ok(guard) => guard,
+            Err(_) => return Err(EngramDbError::Storage("Failed to acquire read lock for query execution".to_string())),
+        };
+        
+        // Execute the query using the locked database's vector index and load function
+        self.builder.execute(
+            db_guard.vector_index.as_ref(),
+            |id| db_guard.load(id)
+        )
     }
 }
 

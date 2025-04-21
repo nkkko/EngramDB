@@ -457,6 +457,14 @@ impl StorageEngine for SingleFileStorageEngine {
     fn list_all(&self) -> Result<Vec<Uuid>> {
         Ok(self.index.keys().copied().collect())
     }
+    
+    fn get_type(&self) -> crate::database::StorageType {
+        crate::database::StorageType::SingleFile
+    }
+    
+    fn get_path(&self) -> Option<&std::path::Path> {
+        Some(&self.file_path)
+    }
 }
 
 #[cfg(test)]

@@ -81,22 +81,9 @@ pub struct Database {
     pub vector_index: Box<dyn VectorSearchIndex + Send + Sync>,
 }
 
-// IMPORTANT: Database cannot be properly cloned because Box<dyn VectorSearchIndex> is not clonable
-// This implementation provides a simplified clone for Python bindings but has limitations
-impl Clone for Database {
-    fn clone(&self) -> Self {
-        // Note: This is a simplified clone that creates a new instance
-        // with a fresh vector index and separate storage.
-        // For actual clones, consider using Arc for the storage backend.
-        
-        // Create a new in-memory database
-        Self::in_memory()
-        
-        // WARNING: We cannot properly clone the vector index because Box<dyn VectorSearchIndex>
-        // does not implement Clone. The consumer of the cloned Database will need to
-        // repopulate the vector index.
-    }
-}
+// Intentionally not implementing Clone for Database because it's not safely clonable.
+// For thread-safe usage that shares the same database, use ThreadSafeDatabase instead.
+// For Python binding support, we provide methods to convert to thread-safe versions.
 
 impl Database {
     /// Creates a new database with the given configuration
@@ -646,6 +633,58 @@ impl Database {
         self.vector_index = create_vector_index(&VectorIndexConfig::default());
         
         Ok(())
+    }
+    
+    /// Converts this database into a thread-safe database
+    ///
+    /// This method converts a standard Database instance into a ThreadSafeDatabase,
+    /// which can be safely shared between threads using Arc and RwLock.
+    ///
+    /// # Returns
+    ///
+    /// A new thread-safe database instance with the same data
+    pub fn to_thread_safe(self) -> crate::vector::ThreadSafeDatabase {
+        crate::vector::ThreadSafeDatabase::from_database(self)
+    }
+    
+    /// Creates a thread-safe database that shares the same storage but with separate 
+    /// vector indices
+    ///
+    /// This is useful for scenarios where you want to share the same underlying storage
+    /// but need thread-safe access from multiple threads with potentially different
+    /// vector index configurations.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Optional vector index configuration for the new instance
+    ///
+    /// # Returns
+    ///
+    /// A result containing either the new thread-safe database or an error
+    pub fn create_thread_safe_view(&self, config: Option<VectorIndexConfig>) -> Result<crate::vector::ThreadSafeDatabase> {
+        // Create a new database with the same storage type and path
+        let storage_path = match self.storage.get_path() {
+            Some(path) => Some(path.to_string_lossy().to_string()),
+            None => None,
+        };
+        
+        let storage_type = self.storage.get_type();
+        
+        let vector_config = config.unwrap_or_else(|| VectorIndexConfig::default());
+        
+        let db_config = DatabaseConfig {
+            storage_type,
+            storage_path,
+            cache_size: 100, // Default cache size
+            vector_index_config: vector_config,
+        };
+        
+        // Create and initialize the new database
+        let mut db = Self::new(db_config)?;
+        db.initialize()?;
+        
+        // Convert to thread-safe and return
+        Ok(db.to_thread_safe())
     }
 }
 

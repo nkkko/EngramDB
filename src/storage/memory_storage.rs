@@ -74,6 +74,14 @@ impl StorageEngine for MemoryStorageEngine {
         let ids = store.keys().cloned().collect();
         Ok(ids)
     }
+    
+    fn get_type(&self) -> crate::database::StorageType {
+        crate::database::StorageType::Memory
+    }
+    
+    fn get_path(&self) -> Option<&std::path::Path> {
+        None // Memory storage has no path
+    }
 }
 
 #[cfg(test)]

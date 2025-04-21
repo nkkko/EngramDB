@@ -224,6 +224,14 @@ impl StorageEngine for FileStorageEngine {
 
         Ok(ids)
     }
+    
+    fn get_type(&self) -> crate::database::StorageType {
+        crate::database::StorageType::MultiFile
+    }
+    
+    fn get_path(&self) -> Option<&std::path::Path> {
+        Some(&self.base_dir)
+    }
 }
 
 #[cfg(test)]
