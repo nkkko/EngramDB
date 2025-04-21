@@ -54,9 +54,8 @@ impl ThreadSafeDatabase {
         }
     }
 
-    // Deprecated: use new_default() instead
-    #[deprecated(since = "0.2.0", note = "Use new_default() instead")]
-    pub fn default() -> Result<Self> {
+    // Create a method with a distinct name to avoid confusion with Default trait
+    pub fn create_default() -> Result<Self> {
         Self::new_default()
     }
 

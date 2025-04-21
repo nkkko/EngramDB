@@ -383,6 +383,7 @@ impl StorageEngine for SingleFileStorageEngine {
             .read(true)
             .write(true)
             .create(true) // Create if it doesn't exist
+            .truncate(false) // Don't truncate existing file, we want to append
             .open(&self.file_path)
             .map_err(|e| EngramDbError::Storage(format!("Failed to open database file: {}", e)))?;
 

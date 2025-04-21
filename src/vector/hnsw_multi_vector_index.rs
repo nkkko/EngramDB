@@ -32,7 +32,7 @@ impl Default for PoolingStrategy {
 }
 
 /// Configuration for the HNSW multi-vector index
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct HnswMultiVectorConfig {
     /// Standard HNSW parameters
     pub hnsw_config: HnswConfig,
@@ -44,20 +44,11 @@ pub struct HnswMultiVectorConfig {
     pub pooling_strategy: PoolingStrategy,
 }
 
-impl Default for HnswMultiVectorConfig {
-    fn default() -> Self {
-        Self {
-            hnsw_config: HnswConfig::default(),
-            multi_vector_config: MultiVectorIndexConfig::default(),
-            pooling_strategy: PoolingStrategy::default(),
-        }
-    }
-}
-
 /// A node in the HNSW graph for multi-vector index
 #[derive(Debug, Clone)]
 struct HnswNode {
     /// The UUID of the memory node
+    #[allow(dead_code)]
     id: Uuid,
 
     /// Representative embedding vector for HNSW routing

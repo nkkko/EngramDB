@@ -208,7 +208,7 @@ fn list_memories(db: &Database) -> Result<()> {
 
     println!("Found {} memories:", memory_ids.len());
     println!("╔══════════════════════════════════════════════════════════════════════════════════════════");
-    println!("║ {:^36} │ {:^36} │ {}", "ID", "Description", "Created");
+    println!("║ {:^36} │ {:^36} │ Created", "ID", "Description");
     println!("╠══════════════════════════════════════════════════════════════════════════════════════════");
 
     // Load and sort memories by creation time
@@ -236,7 +236,7 @@ fn list_memories(db: &Database) -> Result<()> {
 
         // Format creation time
         let datetime = chrono::DateTime::from_timestamp(memory.creation_timestamp() as i64, 0)
-            .unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH);
+            .unwrap_or(chrono::DateTime::UNIX_EPOCH);
         let formatted_time = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
 
         println!(
@@ -300,7 +300,7 @@ fn create_memory(
     }
 
     // Add timestamp for sorting
-    let timestamp = Local::now().timestamp() as i64;
+    let timestamp = Local::now().timestamp();
     memory.set_attribute(
         "creation_timestamp".to_string(),
         AttributeValue::Integer(timestamp),
@@ -406,7 +406,7 @@ fn search_memories(db: &Database, query: &str) -> Result<()> {
         let mut matched = false;
 
         // Search in all string attributes
-        for (_, value) in memory.attributes() {
+        for value in memory.attributes().values() {
             if let AttributeValue::String(s) = value {
                 if s.to_lowercase().contains(&query_lower) {
                     matched = true;
@@ -427,7 +427,7 @@ fn search_memories(db: &Database, query: &str) -> Result<()> {
 
     println!("Found {} results for query '{}':", results.len(), query);
     println!("╔══════════════════════════════════════════════════════════════════════════════════════════");
-    println!("║ {:^36} │ {:^36} │ {}", "ID", "Description", "Created");
+    println!("║ {:^36} │ {:^36} │ Created", "ID", "Description");
     println!("╠══════════════════════════════════════════════════════════════════════════════════════════");
 
     for (id, memory) in results {
@@ -441,7 +441,7 @@ fn search_memories(db: &Database, query: &str) -> Result<()> {
 
         // Format creation time
         let datetime = chrono::DateTime::from_timestamp(memory.creation_timestamp() as i64, 0)
-            .unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH);
+            .unwrap_or(chrono::DateTime::UNIX_EPOCH);
         let formatted_time = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
 
         println!(

@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let storage_dir = args
         .iter()
         .skip(1)
-        .find(|arg| !arg.starts_with("-"))
+        .find(|arg| !arg.starts_with('-'))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("./memory_storage"));
 

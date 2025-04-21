@@ -40,6 +40,34 @@ This document outlines planned improvements to the EngramDB database system, ins
 
 ## High Priority Improvements
 
+### 0. Sleep-time Compute Implementation
+
+- [ ] [P0] Implement background processing system for sleep-time compute
+  - [ ] Create background task management system with task queues
+  - [ ] Implement idle detection mechanism to trigger background processing
+  - [ ] Design LLM interface for sleep-time compute operations
+  - [ ] Add resource management for controlling compute usage
+
+- [ ] [P1] Add sleep-compute operations
+  - [ ] Implement `Database::summarize_nodes()` for creating summaries of node clusters
+  - [ ] Implement `Database::infer_connections()` for discovering relationships between nodes
+  - [ ] Implement `Database::enrich_node()` for adding additional context to existing nodes
+  - [ ] Implement `Database::predict_queries()` for pre-computing anticipated queries
+
+- [ ] [P1] Extend memory node architecture for sleep-compute results
+  - [ ] Add new node types (Summary, Inference) for storing computation results
+  - [ ] Add source node tracking for derived nodes
+  - [ ] Add metadata for sleep-compute operations
+
+- [ ] [P1] Implement trigger mechanisms for background processing
+  - [ ] Create idle timer trigger for periods of inactivity
+  - [ ] Add access pattern analysis for predictive triggering
+  - [ ] Add explicit API for requesting background tasks
+
+- [ ] [P2] Optimize query system for sleep-compute results
+  - [ ] Extend QueryBuilder to prioritize summary/inference nodes
+  - [ ] Add configuration for preferring pre-computed results
+
 ### 1. Core Engine & ACID Properties
 
 - [ ] [P1] Implement atomic operations via transaction API

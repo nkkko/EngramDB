@@ -182,13 +182,11 @@ pub mod embedding_service {
                     let dimensions = provider.dimensions();
 
                     // The provider will automatically handle multi-vector processing based on the model type
-                    let service = Self {
+                    Self {
                         provider: Arc::new(Mutex::new(Box::new(provider.clone()))),
                         dimensions,
                         multi_vector_provider: Some(Arc::new(Mutex::new(Box::new(provider)))),
-                    };
-
-                    service
+                    }
                 }
                 Err(err) => {
                     log::warn!("Failed to initialize multi-vector provider: {}. Falling back to mock provider.", err);

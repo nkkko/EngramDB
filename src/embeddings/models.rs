@@ -1,9 +1,10 @@
 /// Module for model information and configuration
 
 /// Enum of supported embedding models
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EmbeddingModel {
     /// E5 Multilingual Large Instruct
+    #[default]
     E5MultilingualLargeInstruct,
     /// GTE Modern BERT Base
     GteModernBertBase,
@@ -81,8 +82,4 @@ impl EmbeddingModel {
     }
 }
 
-impl Default for EmbeddingModel {
-    fn default() -> Self {
-        EmbeddingModel::E5MultilingualLargeInstruct
-    }
-}
+// Default implementation is now derived

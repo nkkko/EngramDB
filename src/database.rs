@@ -180,9 +180,8 @@ impl Database {
         Self::new(DatabaseConfig::default())
     }
 
-    // Deprecated: use new_default() instead
-    #[deprecated(since = "0.2.0", note = "Use new_default() instead")]
-    pub fn default() -> Result<Self> {
+    // Implement a method with a distinct name to avoid confusion with Default trait
+    pub fn create_default() -> Result<Self> {
         Self::new_default()
     }
 
@@ -325,7 +324,7 @@ impl Database {
     /// A new Database instance, or an error if initialization failed
     pub fn file_based<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let dir_path = dir.as_ref().to_path_buf();
-        let storage = FileStorageEngine::new(&dir_path)?;
+        let storage = FileStorageEngine::new(dir_path)?;
 
         let mut db = Self {
             storage: Box::new(storage),
@@ -350,7 +349,7 @@ impl Database {
     /// A new Database instance, or an error if initialization failed
     pub fn single_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let file_path = file_path.as_ref().to_path_buf();
-        let storage = SingleFileStorageEngine::new(&file_path)?;
+        let storage = SingleFileStorageEngine::new(file_path)?;
 
         let mut db = Self {
             storage: Box::new(storage),
@@ -1046,6 +1045,7 @@ impl Database {
 ///
 /// This struct wraps the QueryBuilder with a specific database instance,
 /// allowing for easier querying.
+#[allow(clippy::borrowed_box)]
 pub struct DatabaseQueryBuilder<'a> {
     vector_index: &'a Box<dyn VectorSearchIndex + Send + Sync>,
     database: &'a Database,
@@ -1081,6 +1081,7 @@ impl<'a> DatabaseQueryBuilder<'a> {
 }
 
 /// A database query with builder methods for adding constraints
+#[allow(clippy::borrowed_box)]
 pub struct DatabaseQuery<'a> {
     builder: QueryBuilder,
     vector_index: &'a Box<dyn VectorSearchIndex + Send + Sync>,
