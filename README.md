@@ -344,6 +344,64 @@ cargo clippy
 cargo fmt
 ```
 
+### Testing
+
+EngramDB includes a comprehensive test suite that covers various aspects of the system:
+
+#### Running Tests
+
+The easiest way to run all tests is using the test script:
+
+```bash
+# Make sure it's executable
+chmod +x scripts/run_tests.sh
+
+# Run all tests, formatting checks, and linting
+./scripts/run_tests.sh
+```
+
+#### Individual Test Categories
+
+You can also run specific test categories:
+
+```bash
+# Run unit tests only
+cargo test --lib
+
+# Run specific integration tests
+cargo test --test vector_search_tests
+cargo test --test thread_safety_tests
+cargo test --test storage_tests
+cargo test --test query_tests
+cargo test --test embedding_tests
+
+# Run specific test function
+cargo test test_vector_search_basic_functionality
+
+# Run benchmarks
+cargo bench
+```
+
+#### Test Categories
+
+- **Thread Safety Tests**: Tests concurrent operations and deadlock prevention
+- **Vector Search Tests**: Tests search functionality, HNSW algorithm, and filters
+- **Storage Tests**: Tests persistence, CRUD operations, and recovery
+- **Query Tests**: Tests filters, sorting, and combined queries
+- **Embedding Tests**: Tests embedding generation and multi-vector support
+
+#### Continuous Integration
+
+EngramDB uses GitHub Actions for continuous integration. The CI pipeline automatically runs on each pull request and includes:
+
+- Building on multiple platforms (Linux, macOS, Windows)
+- Running all tests
+- Code formatting checks
+- Linting with Clippy
+- Code coverage reporting
+
+You can view the CI workflow configuration in `.github/workflows/ci.yml`.
+
 ### Python Development
 
 ```bash
