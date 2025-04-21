@@ -58,14 +58,14 @@ pub trait StorageEngine: Send {
     ///
     /// A vector of UUIDs for all stored memory nodes
     fn list_all(&self) -> Result<Vec<Uuid>>;
-    
+
     /// Gets the storage type of this engine
     ///
     /// # Returns
     ///
     /// The storage type enum
     fn get_type(&self) -> StorageType;
-    
+
     /// Gets the storage path of this engine if applicable
     ///
     /// # Returns

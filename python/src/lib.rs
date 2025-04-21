@@ -8,10 +8,26 @@ use engramdb::{
     RelationshipType as EngramDbRelationshipType,
     ThreadSafeDatabase as EngramDbThreadSafeDatabase,
     ThreadSafeDatabasePool as EngramDbThreadSafeDatabasePool,
+    DatabaseConfig as EngramDbDatabaseConfig,
+    StorageType as EngramDbStorageType,
+    EmbeddingModel as EngramDbEmbeddingModel,
+};
+
+// Vector and multi-vector related imports
+use engramdb::vector::{
+    MultiVectorIndexConfig as EngramDbMultiVectorIndexConfig,
+    MultiVectorSimilarityMethod as EngramDbMultiVectorSimilarityMethod,
+    VectorAlgorithm as EngramDbVectorAlgorithm,
 };
 
 #[cfg(feature = "embeddings")]
-use engramdb::EmbeddingService as EngramDbEmbeddingService;
+use engramdb::{
+    EmbeddingService as EngramDbEmbeddingService,
+    embeddings::multi_vector::{
+        MultiVectorEmbedding as EngramDbMultiVectorEmbedding,
+        MultiVectorProvider as EngramDbMultiVectorProvider,
+    },
+};
 use engramdb::core::AttributeValue;
 use std::path::PathBuf;
 
@@ -108,13 +124,64 @@ impl MemoryNode {
     }
 
     /// Get the embeddings of this memory node
-    fn get_embeddings<'py>(&self, py: Python<'py>) -> &'py PyArray1<f32> {
-        self.inner.embeddings().to_vec().into_pyarray(py)
+    fn get_embeddings<'py>(&self, py: Python<'py>) -> Option<&'py PyArray1<f32>> {
+        self.inner.embeddings().map(|v| v.to_vec().into_pyarray(py))
+    }
+    
+    /// Get the legacy embeddings (flattened if multi-vector)
+    fn get_embeddings_legacy<'py>(&self, py: Python<'py>) -> &'py PyArray1<f32> {
+        self.inner.embeddings_legacy().into_pyarray(py)
     }
     
     /// Set new embeddings for this memory node
     fn set_embeddings(&mut self, embeddings: Vec<f32>) {
         self.inner.set_embeddings(embeddings);
+    }
+    
+    /// Create a memory node with multi-vector embeddings
+    #[cfg(feature = "embeddings")]
+    #[staticmethod]
+    fn with_multi_vector(multi_vector: &MultiVectorEmbedding) -> Self {
+        Self {
+            inner: EngramDbMemoryNode::with_multi_vector(multi_vector.inner.clone()),
+        }
+    }
+    
+    /// Create a memory node from text using multi-vector embeddings
+    #[cfg(feature = "embeddings")]
+    #[staticmethod]
+    fn from_text_multi_vector(text: &str, embedding_service: &EmbeddingService, category: Option<&str>) -> PyResult<Self> {
+        if !embedding_service.inner.has_multi_vector() {
+            return Err(PyValueError::new_err("Embedding service does not have multi-vector capability"));
+        }
+        
+        match embedding_service.inner.generate_multi_vector_for_document(text, category) {
+            Ok(multi_vec) => {
+                let node = EngramDbMemoryNode::with_multi_vector(multi_vec);
+                // Add the text content as an attribute
+                let mut new_node = node.clone();
+                new_node.set_attribute("content".to_string(), AttributeValue::String(text.to_string()));
+                
+                // Add category if provided
+                if let Some(cat) = category {
+                    new_node.set_attribute("category".to_string(), AttributeValue::String(cat.to_string()));
+                }
+                
+                Ok(Self { inner: new_node })
+            },
+            Err(e) => Err(PyValueError::new_err(format!("Failed to create multi-vector memory: {}", e)))
+        }
+    }
+    
+    /// Check if this memory node uses multi-vector embeddings
+    fn is_multi_vector(&self) -> bool {
+        self.inner.is_multi_vector()
+    }
+    
+    /// Get multi-vector embeddings if available
+    #[cfg(feature = "embeddings")]
+    fn multi_vector_embeddings(&self) -> Option<MultiVectorEmbedding> {
+        self.inner.multi_vector_embeddings().map(|mv| MultiVectorEmbedding { inner: mv.clone() })
     }
 }
 
@@ -139,6 +206,31 @@ impl Database {
             inner: EngramDbDatabase::in_memory(),
         }
     }
+    
+    /// Create a new in-memory database with HNSW index
+    #[staticmethod]
+    fn in_memory_with_hnsw() -> Self {
+        Self {
+            inner: EngramDbDatabase::in_memory_with_hnsw(),
+        }
+    }
+    
+    /// Create a new in-memory database with multi-vector index
+    #[staticmethod]
+    fn in_memory_with_multi_vector() -> Self {
+        Self {
+            inner: EngramDbDatabase::in_memory_with_multi_vector(),
+        }
+    }
+    
+    /// Create a database with a specific configuration
+    #[staticmethod]
+    fn with_config(config: &DatabaseConfig) -> PyResult<Self> {
+        match EngramDbDatabase::with_config(config.inner.clone()) {
+            Ok(db) => Ok(Self { inner: db }),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to create database with config: {}", e))),
+        }
+    }
 
     /// Create a new file-based database at the given path
     #[staticmethod]
@@ -146,6 +238,24 @@ impl Database {
         match EngramDbDatabase::file_based(PathBuf::from(path)) {
             Ok(db) => Ok(Self { inner: db }),
             Err(e) => Err(PyValueError::new_err(format!("Failed to create file-based database: {}", e)))
+        }
+    }
+    
+    /// Create a file-based database with the specified path and HNSW index
+    #[staticmethod]
+    fn file_based_with_hnsw(path: &str) -> PyResult<Self> {
+        match EngramDbDatabase::file_based_with_hnsw(PathBuf::from(path)) {
+            Ok(db) => Ok(Self { inner: db }),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to create database with HNSW: {}", e)))
+        }
+    }
+    
+    /// Create a file-based database with the specified path and multi-vector index
+    #[staticmethod]
+    fn file_based_with_multi_vector(path: &str) -> PyResult<Self> {
+        match EngramDbDatabase::file_based_with_multi_vector(PathBuf::from(path)) {
+            Ok(db) => Ok(Self { inner: db }),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to create database with multi-vector: {}", e)))
         }
     }
 
@@ -309,6 +419,62 @@ impl Database {
             Err(e) => Err(PyValueError::new_err(format!("Failed to clear database: {}", e)))
         }
     }
+    
+    /// Create a memory node from text using multi-vector embeddings
+    #[cfg(feature = "embeddings")]
+    fn create_memory_from_text_multi_vector(
+        &mut self,
+        text: &str,
+        embedding_service: &EmbeddingService,
+        category: Option<&str>,
+        title: Option<&str>,
+    ) -> PyResult<String> {
+        // Create attribute dictionary if title is provided
+        let mut attributes = std::collections::HashMap::new();
+        if let Some(t) = title {
+            attributes.insert("title".to_string(), AttributeValue::String(t.to_string()));
+        }
+        
+        // Use the EngramDB database to create the memory with multi-vector
+        match self.inner.create_memory_from_text_multi_vector(
+            text,
+            &embedding_service.inner,
+            category,
+            if attributes.is_empty() { None } else { Some(&attributes) }
+        ) {
+            Ok(id) => Ok(id.to_string()),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to create multi-vector memory: {}", e))),
+        }
+    }
+    
+    /// Perform a search using a vector query and return memory nodes
+    fn search_by_vector(&self, query_vector: Vec<f32>, limit: usize, threshold: f32) -> PyResult<Vec<(MemoryNode, f32)>> {
+        match self.inner.search_by_vector(&query_vector, limit, threshold) {
+            Ok(results) => {
+                let mut memory_results = Vec::with_capacity(results.len());
+                for (node, score) in results {
+                    memory_results.push((MemoryNode { inner: node }, score));
+                }
+                Ok(memory_results)
+            },
+            Err(e) => Err(PyValueError::new_err(format!("Failed to search by vector: {}", e))),
+        }
+    }
+    
+    /// Perform a search using a multi-vector query and return memory nodes
+    #[cfg(feature = "embeddings")]
+    fn search_by_multi_vector(&self, multi_vector: &MultiVectorEmbedding, limit: usize, threshold: f32) -> PyResult<Vec<(MemoryNode, f32)>> {
+        match self.inner.search_by_multi_vector(&multi_vector.inner, limit, threshold) {
+            Ok(results) => {
+                let mut memory_results = Vec::with_capacity(results.len());
+                for (node, score) in results {
+                    memory_results.push((MemoryNode { inner: node }, score));
+                }
+                Ok(memory_results)
+            },
+            Err(e) => Err(PyValueError::new_err(format!("Failed to search by multi-vector: {}", e))),
+        }
+    }
 }
 
 /// Python enum for relationship types between memory nodes
@@ -346,7 +512,8 @@ enum EmbeddingModelType {
     E5 = 0,
     GTE = 1,
     JINA = 2,
-    CUSTOM = 3,
+    JINA_COLBERT = 3,
+    CUSTOM = 4,
 }
 
 #[cfg(feature = "embeddings")]
@@ -356,6 +523,7 @@ impl From<EmbeddingModelType> for engramdb::embeddings::EmbeddingModel {
             EmbeddingModelType::E5 => engramdb::embeddings::EmbeddingModel::E5MultilingualLargeInstruct,
             EmbeddingModelType::GTE => engramdb::embeddings::EmbeddingModel::GteModernBertBase,
             EmbeddingModelType::JINA => engramdb::embeddings::EmbeddingModel::JinaEmbeddingsV3,
+            EmbeddingModelType::JINA_COLBERT => engramdb::embeddings::EmbeddingModel::JinaColBERTv2,
             EmbeddingModelType::CUSTOM => engramdb::embeddings::EmbeddingModel::Custom,
         }
     }
@@ -421,6 +589,63 @@ impl EmbeddingService {
     /// Generate random embeddings
     fn generate_random(&self) -> Vec<f32> {
         self.inner.generate_random()
+    }
+    
+    /// Returns whether this service has multi-vector capability
+    fn has_multi_vector(&self) -> bool {
+        self.inner.has_multi_vector()
+    }
+    
+    /// Returns the dimensions of multi-vector embeddings, if available
+    fn multi_vector_dimensions(&self) -> Option<usize> {
+        self.inner.multi_vector_dimensions()
+    }
+    
+    /// Create a new embedding service with a multi-vector model
+    #[staticmethod]
+    fn with_multi_vector_model(model_type: EmbeddingModelType) -> Self {
+        let rust_model_type = EngramDbEmbeddingModel::from(model_type);
+        Self {
+            inner: EngramDbEmbeddingService::with_multi_vector_model(rust_model_type),
+        }
+    }
+    
+    /// Create a new embedding service with mock providers for both single and multi-vector
+    #[staticmethod]
+    fn new_mock_multi_vector(dimensions: usize, num_vectors: usize) -> Self {
+        Self {
+            inner: EngramDbEmbeddingService::new_mock_multi_vector(dimensions, num_vectors),
+        }
+    }
+    
+    /// Generate multi-vector embeddings for text
+    fn generate_multi_vector(&self, text: &str) -> PyResult<MultiVectorEmbedding> {
+        match self.inner.generate_multi_vector(text) {
+            Ok(embeddings) => Ok(MultiVectorEmbedding { inner: embeddings }),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to generate multi-vector embeddings: {}", e))),
+        }
+    }
+    
+    /// Generate multi-vector embeddings for a document
+    fn generate_multi_vector_for_document(&self, text: &str, category: Option<&str>) -> PyResult<MultiVectorEmbedding> {
+        match self.inner.generate_multi_vector_for_document(text, category) {
+            Ok(embeddings) => Ok(MultiVectorEmbedding { inner: embeddings }),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to generate multi-vector embeddings: {}", e))),
+        }
+    }
+    
+    /// Generate multi-vector embeddings for a query
+    fn generate_multi_vector_for_query(&self, text: &str) -> PyResult<MultiVectorEmbedding> {
+        match self.inner.generate_multi_vector_for_query(text) {
+            Ok(embeddings) => Ok(MultiVectorEmbedding { inner: embeddings }),
+            Err(e) => Err(PyValueError::new_err(format!("Failed to generate multi-vector embeddings: {}", e))),
+        }
+    }
+    
+    /// Generate random multi-vector embeddings
+    fn generate_random_multi_vector(&self, num_vectors: Option<usize>) -> Option<MultiVectorEmbedding> {
+        self.inner.generate_random_multi_vector(num_vectors)
+            .map(|embeddings| MultiVectorEmbedding { inner: embeddings })
     }
 }
 
@@ -639,6 +864,153 @@ impl ThreadSafeDatabasePool {
     }
 }
 
+/// Python enum for vector algorithm types
+#[pyclass]
+#[derive(Clone, Copy)]
+enum VectorAlgorithm {
+    Linear = 0,
+    HNSW = 1,
+    MultiVector = 2,
+}
+
+impl From<VectorAlgorithm> for EngramDbVectorAlgorithm {
+    fn from(alg: VectorAlgorithm) -> Self {
+        match alg {
+            VectorAlgorithm::Linear => EngramDbVectorAlgorithm::Linear,
+            VectorAlgorithm::HNSW => EngramDbVectorAlgorithm::HNSW,
+            VectorAlgorithm::MultiVector => EngramDbVectorAlgorithm::MultiVector,
+        }
+    }
+}
+
+/// Python enum for multi-vector similarity methods
+#[pyclass]
+#[derive(Clone, Copy)]
+enum MultiVectorSimilarityMethod {
+    Maximum = 0,
+    Average = 1,
+    LateInteraction = 2,
+}
+
+impl From<MultiVectorSimilarityMethod> for EngramDbMultiVectorSimilarityMethod {
+    fn from(method: MultiVectorSimilarityMethod) -> Self {
+        match method {
+            MultiVectorSimilarityMethod::Maximum => EngramDbMultiVectorSimilarityMethod::Maximum,
+            MultiVectorSimilarityMethod::Average => EngramDbMultiVectorSimilarityMethod::Average,
+            MultiVectorSimilarityMethod::LateInteraction => EngramDbMultiVectorSimilarityMethod::LateInteraction,
+        }
+    }
+}
+
+/// Python wrapper for DatabaseConfig
+#[pyclass]
+struct DatabaseConfig {
+    inner: EngramDbDatabaseConfig,
+}
+
+#[pymethods]
+impl DatabaseConfig {
+    /// Create a new in-memory database configuration
+    #[staticmethod]
+    fn new_in_memory() -> Self {
+        Self {
+            inner: EngramDbDatabaseConfig::default_in_memory(),
+        }
+    }
+    
+    /// Create a new file-based database configuration
+    #[staticmethod]
+    fn new_file_based(path: &str) -> Self {
+        Self {
+            inner: EngramDbDatabaseConfig::default_file_based(path),
+        }
+    }
+    
+    /// Set the vector algorithm to use
+    fn set_vector_algorithm(&mut self, algorithm: VectorAlgorithm) {
+        self.inner.set_vector_algorithm(algorithm.into());
+    }
+    
+    /// Set the multi-vector configuration
+    fn set_multi_vector_config(&mut self, config: &MultiVectorIndexConfig) {
+        self.inner.set_multi_vector_config(config.inner.clone());
+    }
+}
+
+/// Python wrapper for MultiVectorIndexConfig
+#[pyclass]
+struct MultiVectorIndexConfig {
+    inner: EngramDbMultiVectorIndexConfig,
+}
+
+#[pymethods]
+impl MultiVectorIndexConfig {
+    #[new]
+    fn new() -> Self {
+        Self {
+            inner: EngramDbMultiVectorIndexConfig::default(),
+        }
+    }
+    
+    /// Set whether to quantize the vectors
+    fn set_quantize(&mut self, quantize: bool) {
+        self.inner.quantize = quantize;
+    }
+    
+    /// Set the similarity method to use
+    fn set_similarity_method(&mut self, method: MultiVectorSimilarityMethod) {
+        self.inner.similarity_method = method.into();
+    }
+}
+
+/// Python wrapper for MultiVectorEmbedding
+#[cfg(feature = "embeddings")]
+#[pyclass]
+struct MultiVectorEmbedding {
+    inner: EngramDbMultiVectorEmbedding,
+}
+
+#[cfg(feature = "embeddings")]
+#[pymethods]
+impl MultiVectorEmbedding {
+    /// Returns the dimensions of each vector
+    fn dimensions(&self) -> usize {
+        self.inner.dimensions()
+    }
+    
+    /// Returns the number of vectors
+    fn num_vectors(&self) -> usize {
+        self.inner.num_vectors()
+    }
+    
+    /// Returns whether the vectors are quantized
+    fn is_quantized(&self) -> bool {
+        self.inner.is_quantized()
+    }
+    
+    /// Returns the vectors as a list of numpy arrays
+    fn vectors<'py>(&self, py: Python<'py>) -> Vec<&'py PyArray1<f32>> {
+        self.inner.vectors().iter()
+            .map(|v| v.to_vec().into_pyarray(py))
+            .collect()
+    }
+    
+    /// Compute the maximum similarity between any pair of vectors in the two multi-vector embeddings
+    fn max_similarity(&self, other: &MultiVectorEmbedding) -> f32 {
+        self.inner.max_similarity(&other.inner)
+    }
+    
+    /// Compute the average similarity between all pairs of vectors in the two multi-vector embeddings
+    fn avg_similarity(&self, other: &MultiVectorEmbedding) -> f32 {
+        self.inner.avg_similarity(&other.inner)
+    }
+    
+    /// Calculate the late interaction score between this and another multi-vector embedding
+    fn late_interaction_score(&self, other: &MultiVectorEmbedding) -> f32 {
+        self.inner.late_interaction_score(&other.inner)
+    }
+}
+
 /// Register the Python module
 #[pymodule]
 fn _engramdb(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -651,10 +1023,19 @@ fn _engramdb(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ThreadSafeDatabasePool>()?;
     m.add_class::<RelationshipType>()?;
     
+    // Add multi-vector support
+    m.add_class::<DatabaseConfig>()?;
+    m.add_class::<VectorAlgorithm>()?;
+    
     #[cfg(feature = "embeddings")]
     {
         m.add_class::<EmbeddingService>()?;
         m.add_class::<EmbeddingModelType>()?;
+        
+        // Add multi-vector classes (require embeddings feature)
+        m.add_class::<MultiVectorEmbedding>()?;
+        m.add_class::<MultiVectorIndexConfig>()?;
+        m.add_class::<MultiVectorSimilarityMethod>()?;
     }
     
     Ok(())

@@ -16,8 +16,8 @@ pub mod vector;
 #[cfg(feature = "api-server")]
 pub mod api;
 
-pub use crate::core::MemoryNode;
 pub use crate::core::connection::RelationshipType;
+pub use crate::core::MemoryNode;
 pub use crate::database::Database;
 pub use crate::database::DatabaseConfig;
 pub use crate::database::StorageType;

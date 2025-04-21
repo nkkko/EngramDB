@@ -1,10 +1,10 @@
 //! Configuration for the EngramDB API server
 
-use once_cell::sync::Lazy;
-use std::sync::{Arc, RwLock};
-use std::collections::HashMap;
-use uuid::Uuid;
 use crate::database::Database;
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use uuid::Uuid;
 
 /// Global state for the API server
 pub struct ApiState {
@@ -77,14 +77,13 @@ impl ApiConfig {
     /// Create a new ApiConfig from environment variables
     pub fn from_env() -> Self {
         dotenv::dotenv().ok();
-        
+
         Self {
             port: std::env::var("ENGRAMDB_API_PORT")
                 .unwrap_or_else(|_| "8000".to_string())
                 .parse()
                 .unwrap_or(8000),
-            host: std::env::var("ENGRAMDB_API_HOST")
-                .unwrap_or_else(|_| "0.0.0.0".to_string()),
+            host: std::env::var("ENGRAMDB_API_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
             jwt_secret: std::env::var("ENGRAMDB_JWT_SECRET")
                 .unwrap_or_else(|_| Uuid::new_v4().to_string()),
             enable_swagger: std::env::var("ENGRAMDB_ENABLE_SWAGGER")

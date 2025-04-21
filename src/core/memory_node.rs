@@ -12,7 +12,7 @@ use crate::embeddings::multi_vector::MultiVectorEmbedding;
 pub enum EmbeddingType {
     /// Single vector embedding (traditional approach)
     SingleVector(Vec<f32>),
-    
+
     /// Multi-vector embedding (ColBERT/ColPali-style)
     #[cfg(feature = "embeddings")]
     MultiVector(MultiVectorEmbedding),
@@ -80,7 +80,7 @@ impl MemoryNode {
             access_patterns: AccessHistory::new(),
         }
     }
-    
+
     /// Creates a new memory node with multi-vector embeddings
     ///
     /// # Arguments
@@ -91,7 +91,9 @@ impl MemoryNode {
     ///
     /// A new MemoryNode with a generated UUID and initialized fields
     #[cfg(feature = "embeddings")]
-    pub fn with_multi_vector(multi_vector: crate::embeddings::multi_vector::MultiVectorEmbedding) -> Self {
+    pub fn with_multi_vector(
+        multi_vector: crate::embeddings::multi_vector::MultiVectorEmbedding,
+    ) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -107,7 +109,7 @@ impl MemoryNode {
             access_patterns: AccessHistory::new(),
         }
     }
-    
+
     /// Creates a new memory node from text content using the provided embedding service
     ///
     /// # Arguments
@@ -127,21 +129,27 @@ impl MemoryNode {
     ) -> Result<Self, crate::embeddings::EmbeddingError> {
         // Generate embeddings for the text
         let embeddings = embedding_service.generate_for_document(text, category)?;
-        
+
         // Create the memory node
         let mut node = Self::new(embeddings);
-        
+
         // Store the text content as an attribute
-        node.set_attribute("content".to_string(), AttributeValue::String(text.to_string()));
-        
+        node.set_attribute(
+            "content".to_string(),
+            AttributeValue::String(text.to_string()),
+        );
+
         // Store the category if provided
         if let Some(cat) = category {
-            node.set_attribute("category".to_string(), AttributeValue::String(cat.to_string()));
+            node.set_attribute(
+                "category".to_string(),
+                AttributeValue::String(cat.to_string()),
+            );
         }
-        
+
         Ok(node)
     }
-    
+
     /// Creates a new memory node from text content using multi-vector embeddings
     ///
     /// # Arguments
@@ -160,22 +168,29 @@ impl MemoryNode {
         category: Option<&str>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Generate multi-vector embeddings for the text
-        let multi_vector = multi_vector_service.generate_multi_vector_for_document(text, category)?;
-        
+        let multi_vector =
+            multi_vector_service.generate_multi_vector_for_document(text, category)?;
+
         // Create the memory node
         let mut node = Self::with_multi_vector(multi_vector);
-        
+
         // Store the text content as an attribute
-        node.set_attribute("content".to_string(), AttributeValue::String(text.to_string()));
-        
+        node.set_attribute(
+            "content".to_string(),
+            AttributeValue::String(text.to_string()),
+        );
+
         // Store the category if provided
         if let Some(cat) = category {
-            node.set_attribute("category".to_string(), AttributeValue::String(cat.to_string()));
+            node.set_attribute(
+                "category".to_string(),
+                AttributeValue::String(cat.to_string()),
+            );
         }
-        
+
         Ok(node)
     }
-    
+
     /// Creates a new memory node with random embeddings (for testing)
     ///
     /// # Arguments
@@ -190,7 +205,7 @@ impl MemoryNode {
         use crate::embeddings::mock::generate_random_embedding;
         Self::new(generate_random_embedding(dimensions))
     }
-    
+
     /// Creates a new memory node with random multi-vector embeddings (for testing)
     ///
     /// # Arguments
@@ -238,7 +253,7 @@ impl MemoryNode {
             EmbeddingType::MultiVector(_) => None,
         }
     }
-    
+
     /// Returns a reference to the vector embeddings, flattening a multi-vector if needed
     /// This is used for backward compatibility with existing code
     pub fn embeddings_legacy(&self) -> Vec<f32> {
@@ -253,7 +268,7 @@ impl MemoryNode {
                     result.extend_from_slice(vec);
                 }
                 result
-            },
+            }
         }
     }
 
@@ -261,23 +276,28 @@ impl MemoryNode {
     pub fn set_embeddings(&mut self, embeddings: Vec<f32>) {
         self.embedding_type = EmbeddingType::SingleVector(embeddings);
     }
-    
+
     /// Gets a reference to the multi-vector embeddings if this is a multi-vector embedding
     /// Returns None if this is a single-vector embedding
     #[cfg(feature = "embeddings")]
-    pub fn multi_vector_embeddings(&self) -> Option<&crate::embeddings::multi_vector::MultiVectorEmbedding> {
+    pub fn multi_vector_embeddings(
+        &self,
+    ) -> Option<&crate::embeddings::multi_vector::MultiVectorEmbedding> {
         match &self.embedding_type {
             EmbeddingType::SingleVector(_) => None,
             EmbeddingType::MultiVector(multi_vec) => Some(multi_vec),
         }
     }
-    
+
     /// Sets the embeddings to a new multi-vector value
     #[cfg(feature = "embeddings")]
-    pub fn set_multi_vector_embeddings(&mut self, multi_vec: crate::embeddings::multi_vector::MultiVectorEmbedding) {
+    pub fn set_multi_vector_embeddings(
+        &mut self,
+        multi_vec: crate::embeddings::multi_vector::MultiVectorEmbedding,
+    ) {
         self.embedding_type = EmbeddingType::MultiVector(multi_vec);
     }
-    
+
     /// Checks if this memory node uses multi-vector embeddings
     pub fn is_multi_vector(&self) -> bool {
         match &self.embedding_type {
@@ -288,7 +308,7 @@ impl MemoryNode {
             _ => false,
         }
     }
-    
+
     /// Returns the embedding type
     pub fn embedding_type(&self) -> &EmbeddingType {
         &self.embedding_type
@@ -354,7 +374,7 @@ mod tests {
         let embeddings = vec![0.1, 0.2, 0.3];
         let node = MemoryNode::new(embeddings.clone());
 
-        assert_eq!(node.embeddings(), &embeddings);
+        assert_eq!(node.embeddings().map(|e| e.to_vec()), Some(embeddings));
         assert!(node.connections().is_empty());
         assert!(node.temporal_layers().is_empty());
         assert!(node.attributes().is_empty());

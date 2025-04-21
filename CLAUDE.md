@@ -7,6 +7,36 @@
 - Test single: `cargo test test_name`
 - Lint: `cargo clippy`
 - Format: `cargo fmt`
+- Benchmark: `cargo bench`
+- Check: `cargo check`
+- Code coverage: `cargo tarpaulin`
+
+## Testing Guidelines
+- All new features require comprehensive tests including:
+  - Unit tests: Test individual functions and methods
+  - Integration tests: Test component interaction
+  - Thread safety tests: For concurrent components
+  - Performance benchmarks: For performance-critical code
+- Maintain test coverage above 80% for all new code
+- Test edge cases and error conditions explicitly
+- Use property-based testing for complex algorithms
+- All public APIs must have tests for all documented behavior
+- Run the complete test suite before submitting a PR
+
+## Test Naming Convention
+- Unit tests: `test_unit_name_scenario_expected_result`
+- Integration tests: `test_integration_components_scenario`
+- Benchmarks: `bench_operation_scenario_configuration`
+- Performance tests: Add baseline metrics as comments
+
+## CI Pipeline Usage
+- All PRs will run through the CI pipeline which includes:
+  - Build verification on multiple platforms
+  - Unit and integration tests
+  - Performance regression checks
+  - Linting and formatting verification
+  - Static analysis
+- Tests must pass on all platforms to be merged
 
 ## Code Style Guidelines
 - Use Rust 2021 edition
@@ -24,5 +54,6 @@
 - Place tests in a tests module with #[cfg(test)]
 - Make all traits that may be used across threads (like VectorSearchIndex) bound by Send + Sync
 - Avoid reference borrowing issues by cloning when necessary, especially in vector indexing code
-- Never mention Claude in commits.
+- Never mention Claude in commits and never add Co-Authored-By: Claude <noreply@anthropic.com>"
 - Always create new git branch for new feature or fix.
+- Never use mock implementations, always write functional code.

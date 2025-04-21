@@ -8,17 +8,17 @@ use uuid::Uuid;
 pub struct CreateConnectionInput {
     /// Target node ID
     pub target_id: Uuid,
-    
+
     /// Relationship type
     pub type_name: String,
-    
+
     /// Connection strength
     #[serde(default = "default_strength")]
     pub strength: f32,
-    
+
     /// Custom type name (when type is "Custom")
     pub custom_type: Option<String>,
-    
+
     /// Whether to create a bidirectional connection
     #[serde(default)]
     pub bidirectional: bool,
@@ -33,16 +33,16 @@ fn default_strength() -> f32 {
 pub struct ConnectionDetails {
     /// Source node ID
     pub source_id: Uuid,
-    
+
     /// Target node ID
     pub target_id: Uuid,
-    
+
     /// Relationship type
     pub type_name: String,
-    
+
     /// Connection strength
     pub strength: f32,
-    
+
     /// Custom type name (when type is "Custom")
     pub custom_type: Option<String>,
 }

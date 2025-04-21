@@ -25,13 +25,13 @@ pub fn generate_token(user_id: &str) -> ApiResult<String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|_| ApiError::internal_error())?
         .as_secs();
-    
+
     let claims = Claims {
         sub: user_id.to_string(),
         exp: now + 60 * 60 * 24, // 24 hours
         iat: now,
     };
-    
+
     encode(
         &Header::default(),
         &claims,
@@ -48,7 +48,7 @@ pub fn validate_token(token: &str) -> ApiResult<Claims> {
         &Validation::default(),
     )
     .map_err(|_| ApiError::unauthorized())?;
-    
+
     Ok(token_data.claims)
 }
 
@@ -67,7 +67,7 @@ impl<'r> FromRequest<'r> for User {
             Some(token) if token.starts_with("Bearer ") => token[7..].to_string(),
             _ => return Outcome::Failure((Status::Unauthorized, ApiError::unauthorized())),
         };
-        
+
         // Validate token
         match validate_token(&token) {
             Ok(claims) => Outcome::Success(User { id: claims.sub }),
@@ -91,7 +91,9 @@ impl<'r> FromRequest<'r> for ApiKey {
             Some(key) => {
                 // In a real implementation, validate the API key against a database
                 // For now, we accept any key for demonstration purposes
-                Outcome::Success(ApiKey { key: key.to_string() })
+                Outcome::Success(ApiKey {
+                    key: key.to_string(),
+                })
             }
             None => Outcome::Failure((Status::Unauthorized, ApiError::unauthorized())),
         }

@@ -19,16 +19,16 @@ pub fn search_nodes(
     let db_arc = API_STATE
         .get_database(&database_id)
         .ok_or_else(|| ApiError::not_found("database"))?;
-    
+
     let db = db_arc.read().unwrap();
-    
+
     // Check that we have either a vector or content
     if input.vector.is_none() && input.content.is_none() {
         return Err(ApiError::bad_request(
             "Either vector or content must be provided for search",
         ));
     }
-    
+
     // If content is provided, convert it to a vector using the specified model
     let query_vector = if let Some(vector) = &input.vector {
         vector.clone()
@@ -41,13 +41,13 @@ pub fn search_nodes(
     } else {
         return Err(ApiError::bad_request("No query vector available"));
     };
-    
+
     // Start building the query
     let mut query_builder = db.query();
-    
+
     // Add vector similarity search
     query_builder = query_builder.with_vector(&query_vector);
-    
+
     // Add attribute filters
     for filter in &input.filters {
         let filter_op = match filter.operation.as_str() {
@@ -58,19 +58,25 @@ pub fn search_nodes(
             "not_equals" => match &filter.value {
                 Some(value) => AttributeFilter::not_equals(&filter.field, value.clone()),
                 None => {
-                    return Err(ApiError::bad_request("Value required for not_equals operation"))
+                    return Err(ApiError::bad_request(
+                        "Value required for not_equals operation",
+                    ))
                 }
             },
             "greater_than" => match &filter.value {
                 Some(value) => AttributeFilter::greater_than(&filter.field, value.clone()),
                 None => {
-                    return Err(ApiError::bad_request("Value required for greater_than operation"))
+                    return Err(ApiError::bad_request(
+                        "Value required for greater_than operation",
+                    ))
                 }
             },
             "less_than" => match &filter.value {
                 Some(value) => AttributeFilter::less_than(&filter.field, value.clone()),
                 None => {
-                    return Err(ApiError::bad_request("Value required for less_than operation"))
+                    return Err(ApiError::bad_request(
+                        "Value required for less_than operation",
+                    ))
                 }
             },
             "exists" => AttributeFilter::exists(&filter.field),
@@ -81,26 +87,28 @@ pub fn search_nodes(
                 )))
             }
         };
-        
+
         query_builder = query_builder.with_attribute_filter(filter_op);
     }
-    
+
     // Set limit and similarity threshold
     query_builder = query_builder.with_limit(input.limit);
     query_builder = query_builder.with_threshold(input.threshold);
-    
+
     // Execute the query
     let query_results = query_builder
         .execute()
         .map_err(|e| ApiError::from_engramdb_error(e))?;
-    
+
     // Convert to output model
     let mut results = Vec::with_capacity(query_results.len());
-    
+
     for (node_id, similarity) in query_results {
         // Load the node
-        let node = db.load(node_id).map_err(|e| ApiError::from_engramdb_error(e))?;
-        
+        let node = db
+            .load(node_id)
+            .map_err(|e| ApiError::from_engramdb_error(e))?;
+
         // Convert to output model
         let node_output = MemoryNodeOutput {
             id: node.id(),
@@ -130,16 +138,16 @@ pub fn search_nodes(
             updated_at: node.updated_at(),
             content: node.content().map(|s| s.to_string()),
         };
-        
+
         results.push(SearchResultItem {
             node: node_output,
             similarity,
         });
     }
-    
+
     // Sort results by similarity (highest first)
     results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
-    
+
     Ok(Json(SearchResults {
         results,
         total: results.len(),

@@ -1,10 +1,10 @@
 //! API routes for the EngramDB REST server
 
-mod databases;
-mod memory_nodes;
 mod connections;
-mod search;
+mod databases;
 mod embeddings;
+mod memory_nodes;
+mod search;
 
 use rocket::{Build, Rocket};
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
@@ -34,9 +34,7 @@ pub fn configure_routes(rocket: Rocket<Build>) -> Rocket<Build> {
         )
         .mount(
             "/v1/databases/:database_id/search",
-            routes![
-                search::search_nodes,
-            ],
+            routes![search::search_nodes,],
         )
         .mount(
             "/v1/databases/:database_id/nodes/:node_id/connections",
@@ -48,10 +46,7 @@ pub fn configure_routes(rocket: Rocket<Build>) -> Rocket<Build> {
         )
         .mount(
             "/v1",
-            routes![
-                embeddings::list_models,
-                embeddings::generate_embedding,
-            ],
+            routes![embeddings::list_models, embeddings::generate_embedding,],
         )
         .mount(
             "/swagger",
@@ -70,12 +65,12 @@ pub fn start_server(config: crate::api::config::ApiConfig) -> Result<(), rocket:
 
     let rocket = rocket::custom(figment);
     let rocket = configure_routes(rocket);
-    
+
     // Block until the server shutdowns
     rocket::build()
         .configure(figment)
         .launch()
         .expect("Failed to launch Rocket server");
-    
+
     Ok(())
 }

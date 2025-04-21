@@ -7,19 +7,19 @@ use serde::{Deserialize, Serialize};
 pub struct EmbeddingModelInfo {
     /// Model ID
     pub id: String,
-    
+
     /// Model name
     pub name: String,
-    
+
     /// Vector dimensions
     pub dimensions: usize,
-    
+
     /// Model description
     pub description: String,
-    
+
     /// Provider name
     pub provider: String,
-    
+
     /// Model type (single_vector or multi_vector)
     pub model_type: String,
 }
@@ -29,7 +29,7 @@ pub struct EmbeddingModelInfo {
 pub struct GenerateEmbeddingInput {
     /// Text content
     pub content: String,
-    
+
     /// Model ID
     #[serde(default = "default_model")]
     pub model: String,
@@ -44,10 +44,10 @@ fn default_model() -> String {
 pub struct GeneratedEmbedding {
     /// Vector embedding
     pub vector: Vec<f32>,
-    
+
     /// Model used
     pub model: String,
-    
+
     /// Vector dimensions
     pub dimensions: usize,
 }

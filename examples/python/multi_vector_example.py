@@ -84,10 +84,8 @@ def main():
     print("\nPerforming search...")
     start_time = time.time()
     
-    # We need to use the underlying vector from multi-vector for the API
-    # This is a compatibility layer - internally it will use the multi-vector similarity
-    query_vec = query_multi_vec.vectors()[0]
-    results = db.search_by_vector(query_vec, 3, 0.0)
+    # Use the multi-vector-specific search method
+    results = db.search_by_multi_vector(query_multi_vec, 3, 0.0)
     
     search_time = time.time() - start_time
     print(f"Search completed in {search_time:.4f} seconds")

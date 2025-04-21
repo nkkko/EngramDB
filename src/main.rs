@@ -15,12 +15,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Parse command line arguments
     let args: Vec<String> = env::args().collect();
-    
+
     // Check for in-memory flag
     let use_memory_storage = args.iter().any(|arg| arg == "--memory" || arg == "-m");
-    
+
     // Get storage directory from arguments or use default
-    let storage_dir = args.iter()
+    let storage_dir = args
+        .iter()
         .skip(1)
         .find(|arg| !arg.starts_with("-"))
         .map(PathBuf::from)
@@ -34,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Using file storage at: {}", storage_dir.display());
         Box::new(FileStorageEngine::new(&storage_dir)?)
     };
-    
+
     // Create a mutable reference to the storage engine
     let mut storage = storage;
     println!("Storage engine initialized");
@@ -95,7 +96,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Query returned {} results:", query_results.len());
     for node in query_results {
         println!("  Memory ID: {}", node.id());
-        if let Some(engramdb::core::AttributeValue::String(desc)) = node.get_attribute("description") {
+        if let Some(engramdb::core::AttributeValue::String(desc)) =
+            node.get_attribute("description")
+        {
             println!("    Description: {}", desc);
         }
     }

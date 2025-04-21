@@ -1,6 +1,6 @@
+use crate::core::MemoryNode;
 use crate::error::EngramDbError;
 use crate::vector::{cosine_similarity, VectorSearchIndex};
-use crate::core::MemoryNode;
 use crate::Result;
 use rand::prelude::*;
 use std::cmp::Ordering;
@@ -36,17 +36,20 @@ impl PartialEq for Candidate {
 
 impl Eq for Candidate {}
 
-impl PartialOrd for Candidate {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl Ord for Candidate {
+    fn cmp(&self, other: &Self) -> Ordering {
         // For max heap with BinaryHeap, we need to reverse the ordering
         // so that the closest (highest similarity) nodes are at the top
-        other.distance.partial_cmp(&self.distance)
+        other
+            .distance
+            .partial_cmp(&self.distance)
+            .unwrap_or(Ordering::Equal)
     }
 }
 
-impl Ord for Candidate {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+impl PartialOrd for Candidate {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -94,6 +97,12 @@ pub struct HnswIndex {
     max_level: usize,
     /// Random number generator for level generation
     rng: StdRng,
+}
+
+impl Default for HnswIndex {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl HnswIndex {
@@ -207,18 +216,23 @@ impl HnswIndex {
                                 let neighbor_embedding = node.embedding.clone();
                                 // End the mutable borrow scope
                                 let _ = node;
-                                
+
                                 // Pre-allocate candidates
                                 let mut candidates = Vec::with_capacity(conn_ids.len());
                                 // Calculate similarities outside of mutable borrow
                                 for conn_id in conn_ids {
-                                    if let Ok(Some(sim)) = self.compute_similarity(&neighbor_embedding, conn_id) {
-                                        candidates.push(Candidate { id: conn_id, distance: sim });
+                                    if let Ok(Some(sim)) =
+                                        self.compute_similarity(&neighbor_embedding, conn_id)
+                                    {
+                                        candidates.push(Candidate {
+                                            id: conn_id,
+                                            distance: sim,
+                                        });
                                     }
                                 }
 
                                 let selected = self.select_neighbors(&candidates, self.config.m);
-                                
+
                                 // Update connections
                                 if let Some(node) = self.nodes.get_mut(&neighbor_id) {
                                     node.connections[level_idx] = selected;
@@ -250,13 +264,13 @@ impl HnswIndex {
 
         // For HNSW, we'll remove and re-add with the optimized vector
         self.remove(id)?;
-        
+
         // Create a capacity-optimized embedding vector
         let mut optimized_embedding = Vec::with_capacity(embedding.len());
         optimized_embedding.extend_from_slice(&embedding);
-        
+
         self.add(id, optimized_embedding)?;
-        
+
         Ok(())
     }
 
@@ -275,11 +289,11 @@ impl HnswIndex {
         if let Some(node) = self.nodes.get(&id) {
             // Pre-allocate with the exact number of levels
             level_connections.reserve(node.connections.len());
-            
+
             for level in 0..node.connections.len() {
                 // For each level, only collect the IDs we need to process
                 // This avoids cloning large data structures
-                let connected_ids = node.connections[level].iter().copied().collect::<Vec<_>>();
+                let connected_ids = node.connections[level].to_vec();
                 level_connections.push(connected_ids);
             }
         } else {
@@ -303,7 +317,7 @@ impl HnswIndex {
         // If the entry point was removed, find a new one
         if self.entry_point == Some(id) {
             self.entry_point = None;
-            
+
             // Find the node with the highest level
             let mut max_level = 0;
             for (node_id, node) in &self.nodes {
@@ -312,7 +326,7 @@ impl HnswIndex {
                     self.entry_point = Some(*node_id);
                 }
             }
-            
+
             self.max_level = max_level.saturating_sub(1);
         }
 
@@ -358,7 +372,7 @@ impl HnswIndex {
         for candidate in candidates {
             if candidate.distance >= threshold {
                 results.push((candidate.id, candidate.distance));
-                
+
                 // Early exit once we have enough results
                 if results.len() >= limit {
                     break;
@@ -428,7 +442,7 @@ impl HnswIndex {
                 if node.connections.len() > level {
                     // Borrow the connections and collect into a new Vec to avoid holding a reference too long
                     // This is memory efficient for temporary use in search
-                    node.connections[level].iter().copied().collect::<Vec<_>>()
+                    node.connections[level].to_vec()
                 } else {
                     Vec::new()
                 }
@@ -455,7 +469,7 @@ impl HnswIndex {
                                 id: neighbor_id,
                                 distance: sim,
                             });
-                            
+
                             results.push(Candidate {
                                 id: neighbor_id,
                                 distance: -sim, // Negative for min heap
@@ -474,7 +488,7 @@ impl HnswIndex {
         // Preallocate the result vector with exact capacity needed
         let result_capacity = results.len();
         let mut result_vec = Vec::with_capacity(result_capacity);
-        
+
         // Convert results to a vector, reversing the negative distance
         while let Some(res) = results.pop() {
             result_vec.push(Candidate {
@@ -484,7 +498,11 @@ impl HnswIndex {
         }
 
         // Sort by descending similarity
-        result_vec.sort_by(|a, b| b.distance.partial_cmp(&a.distance).unwrap_or(Ordering::Equal));
+        result_vec.sort_by(|a, b| {
+            b.distance
+                .partial_cmp(&a.distance)
+                .unwrap_or(Ordering::Equal)
+        });
 
         Ok(result_vec)
     }
@@ -494,13 +512,13 @@ impl HnswIndex {
         // Pre-allocate with exact capacity needed
         let capacity = candidates.len().min(m);
         let mut selected = Vec::with_capacity(capacity);
-        
+
         // If we have fewer candidates than M, use all of them
         if candidates.len() <= m {
             selected.extend(candidates.iter().map(|c| c.id));
             return selected;
         }
-        
+
         // Take the top M candidates by similarity
         for (i, candidate) in candidates.iter().enumerate() {
             if i >= m {
@@ -508,7 +526,7 @@ impl HnswIndex {
             }
             selected.push(candidate.id);
         }
-        
+
         selected
     }
 
@@ -539,7 +557,7 @@ impl VectorSearchIndex for HnswIndex {
             // Create a capacity-optimized vector to avoid over-allocation
             let mut vec = Vec::with_capacity(embeddings.len());
             vec.extend_from_slice(embeddings);
-            
+
             // Call the struct's add method with node ID and embeddings
             self.add(node.id(), vec)
         } else {
@@ -550,18 +568,18 @@ impl VectorSearchIndex for HnswIndex {
             )))
         }
     }
-    
+
     fn remove(&mut self, id: Uuid) -> Result<()> {
         self.remove(id)
     }
-    
+
     fn update(&mut self, node: &MemoryNode) -> Result<()> {
         // Get embeddings from the node
         if let Some(embeddings) = node.embeddings() {
             // Create a capacity-optimized vector to avoid over-allocation
             let mut vec = Vec::with_capacity(embeddings.len());
             vec.extend_from_slice(embeddings);
-            
+
             // Call the struct's update method with node ID and embeddings
             self.update(node.id(), vec)
         } else {
@@ -572,19 +590,19 @@ impl VectorSearchIndex for HnswIndex {
             )))
         }
     }
-    
+
     fn search(&self, query: &[f32], limit: usize, threshold: f32) -> Result<Vec<(Uuid, f32)>> {
         self.search(query, limit, threshold)
     }
-    
+
     fn len(&self) -> usize {
         self.len()
     }
-    
+
     fn is_empty(&self) -> bool {
         self.is_empty()
     }
-    
+
     fn get(&self, id: Uuid) -> Option<&Vec<f32>> {
         self.get(id)
     }
@@ -597,39 +615,39 @@ mod tests {
     #[test]
     fn test_hnsw_basic() {
         let mut index = HnswIndex::new();
-        
+
         // Create test vectors
         let id1 = Uuid::new_v4();
         let id2 = Uuid::new_v4();
         let id3 = Uuid::new_v4();
-        
+
         let vec1 = vec![1.0, 0.0, 0.0];
         let vec2 = vec![0.0, 1.0, 0.0];
         let vec3 = vec![0.0, 0.0, 1.0];
-        
+
         // Add to index
         index.add(id1, vec1.clone()).unwrap();
         index.add(id2, vec2.clone()).unwrap();
         index.add(id3, vec3.clone()).unwrap();
-        
+
         assert_eq!(index.len(), 3);
-        
+
         // Retrieve
         let retrieved1 = index.get(id1).unwrap();
         assert_eq!(retrieved1, &vec1);
-        
+
         // Remove
         index.remove(id2).unwrap();
         assert_eq!(index.len(), 2);
         assert!(index.get(id2).is_none());
-        
+
         // Update
         let vec1_updated = vec![0.5, 0.5, 0.0];
         index.update(id1, vec1_updated.clone()).unwrap();
         let retrieved1_updated = index.get(id1).unwrap();
         assert_eq!(retrieved1_updated, &vec1_updated);
     }
-    
+
     #[test]
     fn test_hnsw_search() {
         let mut index = HnswIndex::with_config(HnswConfig {
@@ -639,42 +657,42 @@ mod tests {
             level_multiplier: 1.0,
             max_level: 4,
         });
-        
+
         // Create test vectors
         let id1 = Uuid::new_v4();
         let id2 = Uuid::new_v4();
         let id3 = Uuid::new_v4();
         let id4 = Uuid::new_v4();
-        
+
         let vec1 = vec![1.0, 0.0, 0.0]; // X-axis
         let vec2 = vec![0.7, 0.7, 0.0]; // 45 degrees in XY plane
         let vec3 = vec![0.0, 1.0, 0.0]; // Y-axis
         let vec4 = vec![0.0, 0.0, 1.0]; // Z-axis
-        
+
         // Add to index
         index.add(id1, vec1).unwrap();
         index.add(id2, vec2).unwrap();
         index.add(id3, vec3).unwrap();
         index.add(id4, vec4).unwrap();
-        
+
         // Search for something closer to the X-axis
         let query = vec![0.9, 0.1, 0.0];
         let results = index.search(&query, 2, 0.0).unwrap();
-        
+
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].0, id1); // X-axis should be closest
         assert_eq!(results[1].0, id2); // 45 degrees should be second
-        
+
         // Search with threshold
         let results = index.search(&query, 10, 0.9).unwrap();
         assert!(results.len() >= 1); // At least id1 should be above 0.9 similarity
-        
+
         // Search with empty query
         let query = vec![];
         let result = index.search(&query, 10, 0.0);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_hnsw_larger_dataset() {
         let mut index = HnswIndex::with_config(HnswConfig {
@@ -684,45 +702,45 @@ mod tests {
             level_multiplier: 1.0,
             max_level: 3,
         });
-        
+
         // Create a larger set of random vectors
         let mut vectors = Vec::new();
         let mut ids = Vec::new();
-        
+
         let dim = 10;
         let count = 100;
-        
+
         let mut rng = rand::thread_rng();
-        
+
         for _ in 0..count {
             let mut vec = Vec::with_capacity(dim);
             for _ in 0..dim {
                 vec.push(rng.gen::<f32>());
             }
-            
+
             // Normalize the vector
             let norm: f32 = vec.iter().map(|&x| x * x).sum::<f32>().sqrt();
             for x in &mut vec {
                 *x /= norm;
             }
-            
+
             vectors.push(vec);
             ids.push(Uuid::new_v4());
         }
-        
+
         // Add all vectors to the index
         for (id, vec) in ids.iter().zip(vectors.iter()) {
             index.add(*id, vec.clone()).unwrap();
         }
-        
+
         assert_eq!(index.len(), count);
-        
+
         // Create a query vector
         let query = vectors[0].clone();
-        
+
         // Search
         let results = index.search(&query, 5, 0.0).unwrap();
-        
+
         // First result should be the vector itself with similarity very close to 1.0
         assert_eq!(results[0].0, ids[0]);
         assert!((results[0].1 - 1.0).abs() < 1e-5);

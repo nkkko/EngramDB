@@ -39,8 +39,9 @@ impl FileStorageEngine {
 
         // Create the base directory if it doesn't exist
         if !base_dir.exists() {
-            fs::create_dir_all(&base_dir)
-                .map_err(|e| EngramDbError::Storage(format!("Failed to create directory: {}", e)))?;
+            fs::create_dir_all(&base_dir).map_err(|e| {
+                EngramDbError::Storage(format!("Failed to create directory: {}", e))
+            })?;
         }
 
         Ok(Self {
@@ -197,9 +198,9 @@ impl StorageEngine for FileStorageEngine {
             }
 
             // Read all JSON files in the subdirectory
-            for file_entry in fs::read_dir(&path)
-                .map_err(|e| EngramDbError::Storage(format!("Failed to read subdirectory: {}", e)))?
-            {
+            for file_entry in fs::read_dir(&path).map_err(|e| {
+                EngramDbError::Storage(format!("Failed to read subdirectory: {}", e))
+            })? {
                 let file_entry = file_entry.map_err(|e| {
                     EngramDbError::Storage(format!("Failed to read file entry: {}", e))
                 })?;
@@ -224,11 +225,11 @@ impl StorageEngine for FileStorageEngine {
 
         Ok(ids)
     }
-    
+
     fn get_type(&self) -> crate::database::StorageType {
         crate::database::StorageType::MultiFile
     }
-    
+
     fn get_path(&self) -> Option<&std::path::Path> {
         Some(&self.base_dir)
     }

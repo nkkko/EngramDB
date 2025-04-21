@@ -68,24 +68,16 @@ impl ApiError {
     /// Create an error from an EngramDB error
     pub fn from_engramdb_error(err: crate::storage::EngramDbError) -> Self {
         match err {
-            crate::storage::EngramDbError::Storage(msg) => {
-                Self::new("STORAGE_ERROR", &msg, 500)
-            }
-            crate::storage::EngramDbError::Query(msg) => {
-                Self::new("QUERY_ERROR", &msg, 400)
-            }
-            crate::storage::EngramDbError::Vector(msg) => {
-                Self::new("VECTOR_ERROR", &msg, 400)
-            }
+            crate::storage::EngramDbError::Storage(msg) => Self::new("STORAGE_ERROR", &msg, 500),
+            crate::storage::EngramDbError::Query(msg) => Self::new("QUERY_ERROR", &msg, 400),
+            crate::storage::EngramDbError::Vector(msg) => Self::new("VECTOR_ERROR", &msg, 400),
             crate::storage::EngramDbError::Serialization(msg) => {
                 Self::new("SERIALIZATION_ERROR", &msg, 500)
             }
             crate::storage::EngramDbError::Validation(msg) => {
                 Self::new("VALIDATION_ERROR", &msg, 400)
             }
-            crate::storage::EngramDbError::Other(msg) => {
-                Self::new("ERROR", &msg, 500)
-            }
+            crate::storage::EngramDbError::Other(msg) => Self::new("ERROR", &msg, 500),
         }
     }
 }

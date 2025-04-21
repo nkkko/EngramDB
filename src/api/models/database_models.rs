@@ -1,9 +1,9 @@
 //! Database-related models for the EngramDB API
 
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use crate::storage::StorageType;
-use crate::vector::{VectorAlgorithm, HnswConfig};
+use crate::vector::{HnswConfig, VectorAlgorithm};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Database configuration input model
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,18 +11,18 @@ pub struct DatabaseConfigInput {
     /// Storage type
     #[serde(default = "default_storage_type")]
     pub storage_type: String,
-    
+
     /// Storage path (for file-based databases)
     pub storage_path: Option<String>,
-    
+
     /// Cache size
     #[serde(default = "default_cache_size")]
     pub cache_size: usize,
-    
+
     /// Vector algorithm
     #[serde(default = "default_vector_algorithm")]
     pub vector_algorithm: String,
-    
+
     /// HNSW configuration
     pub hnsw_config: Option<HnswConfigInput>,
 }
@@ -57,19 +57,19 @@ pub struct HnswConfigInput {
     /// Maximum number of connections per node
     #[serde(default = "default_m")]
     pub m: usize,
-    
+
     /// Size of dynamic candidate list during construction
     #[serde(default = "default_ef_construction")]
     pub ef_construction: usize,
-    
+
     /// Size of dynamic candidate list during search
     #[serde(default = "default_ef")]
     pub ef: usize,
-    
+
     /// Level multiplier
     #[serde(default = "default_level_multiplier")]
     pub level_multiplier: f32,
-    
+
     /// Maximum level
     #[serde(default = "default_max_level")]
     pub max_level: usize,
@@ -112,7 +112,7 @@ impl From<HnswConfigInput> for HnswConfig {
 pub struct CreateDatabaseInput {
     /// Database name
     pub name: String,
-    
+
     /// Database configuration
     #[serde(default)]
     pub config: DatabaseConfigInput,
@@ -123,19 +123,19 @@ pub struct CreateDatabaseInput {
 pub struct DatabaseInfo {
     /// Database ID
     pub id: String,
-    
+
     /// Database name
     pub name: String,
-    
+
     /// Storage type
     pub storage_type: String,
-    
+
     /// Node count
     pub node_count: usize,
-    
+
     /// Created at timestamp
     pub created_at: DateTime<Utc>,
-    
+
     /// Configuration
     pub config: DatabaseConfigInput,
 }
