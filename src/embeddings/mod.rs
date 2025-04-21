@@ -172,7 +172,7 @@ pub mod embedding_service {
                     let dimensions = provider.dimensions();
                     
                     // The provider will automatically handle multi-vector processing based on the model type
-                    let mut service = Self {
+                    let service = Self {
                         provider: Arc::new(Mutex::new(Box::new(provider.clone()))), 
                         dimensions,
                         multi_vector_provider: Some(Arc::new(Mutex::new(Box::new(provider)))),

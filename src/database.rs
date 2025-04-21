@@ -81,6 +81,13 @@ pub struct Database {
     pub vector_index: Box<dyn VectorSearchIndex + Send + Sync>,
 }
 
+// Explicitly implement Send + Sync for Database 
+// This is safe because all fields are Send + Sync:
+// - Box<dyn StorageEngine> is Send (explicitly required in StorageEngine trait)
+// - Box<dyn VectorSearchIndex + Send + Sync> is Send + Sync (explicitly stated)
+unsafe impl Send for Database {}
+unsafe impl Sync for Database {}
+
 // Intentionally not implementing Clone for Database because it's not safely clonable.
 // For thread-safe usage that shares the same database, use ThreadSafeDatabase instead.
 // For Python binding support, we provide methods to convert to thread-safe versions.

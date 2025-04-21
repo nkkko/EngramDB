@@ -6,7 +6,7 @@
 use std::error::Error;
 pub use super::mock::MockProvider;
 use super::models::EmbeddingModel;
-use super::multi_vector::{MultiVectorEmbedding, MultiVectorProvider, MultiVectorError};
+use super::multi_vector::{MultiVectorEmbedding, MultiVectorProvider};
 
 /// Trait for embedding providers
 pub trait Provider {

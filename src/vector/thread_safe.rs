@@ -4,13 +4,12 @@
 
 use std::sync::{Arc, RwLock, Mutex};
 use crate::core::MemoryNode;
-use crate::database::{Database, DatabaseConfig, ConnectionInfo, StorageType};
+use crate::database::{Database, DatabaseConfig};
 use crate::error::EngramDbError;
 use crate::Result;
 use std::path::Path;
 use uuid::Uuid;
 use crate::query::QueryBuilder;
-use crate::vector::{VectorIndexConfig, VectorAlgorithm, HnswConfig};
 
 /// A thread-safe wrapper for the EngramDB Database
 ///
@@ -306,7 +305,7 @@ impl ThreadSafeDatabase {
     ///
     /// A connection pool for creating thread-safe database connections
     pub fn create_connection_pool<P: AsRef<Path>>(path: P) -> Result<ThreadSafeDatabasePool> {
-        Ok(ThreadSafeDatabasePool::new(path)?)
+        ThreadSafeDatabasePool::new(path)
     }
 }
 

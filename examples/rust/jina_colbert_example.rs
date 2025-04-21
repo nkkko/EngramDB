@@ -1,13 +1,10 @@
 use engramdb::{
     core::{MemoryNode, AttributeValue},
-    database::{Database, DatabaseConfig},
-    StorageType,
     embeddings::{
-        EmbeddingService, EmbeddingModel, EmbeddingError
+        EmbeddingService, EmbeddingError
     },
     vector::{
         MultiVectorIndex, MultiVectorIndexConfig, MultiVectorSimilarityMethod,
-        VectorAlgorithm, VectorIndexConfig,
     },
     error::EngramDbError
 };

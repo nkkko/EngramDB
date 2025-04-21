@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // No need to import all from super as we're importing specific items below
     use crate::core::MemoryNode;
+    use crate::embeddings::multi_vector::MultiVectorEmbedding;
+    use crate::EmbeddingService;
     use crate::vector::{
         MultiVectorIndex, MultiVectorIndexConfig, MultiVectorSimilarityMethod,
         VectorAlgorithm, VectorIndexConfig, create_vector_index
@@ -16,7 +18,7 @@ mod tests {
             vec![0.0, 0.0, 1.0],
         ];
         
-        let multi_vec = multi_vector::MultiVectorEmbedding::new(vectors.clone()).unwrap();
+        let multi_vec = MultiVectorEmbedding::new(vectors.clone()).unwrap();
         
         assert_eq!(multi_vec.dimensions(), 3);
         assert_eq!(multi_vec.num_vectors(), 3);
@@ -32,7 +34,7 @@ mod tests {
             vec![0.0, 0.0, 1.0],
         ];
         
-        let multi_vec = multi_vector::MultiVectorEmbedding::new(vectors).unwrap();
+        let multi_vec = MultiVectorEmbedding::new(vectors).unwrap();
         
         // Create a memory node with the multi-vector embedding
         let node = MemoryNode::with_multi_vector(multi_vec.clone());
@@ -52,7 +54,7 @@ mod tests {
     #[test]
     fn test_embedding_service_with_multi_vector() {
         // Create an embedding service with multi-vector support
-        let service = embedding_service::EmbeddingService::new_mock_multi_vector(96, 20);
+        let service = EmbeddingService::new_mock_multi_vector(96, 20);
         
         assert!(service.has_multi_vector());
         assert_eq!(service.dimensions(), 96);
@@ -75,7 +77,7 @@ mod tests {
     #[test]
     fn test_multi_vector_index() {
         // Create an embedding service with multi-vector support
-        let service = embedding_service::EmbeddingService::new_mock_multi_vector(96, 20);
+        let service = EmbeddingService::new_mock_multi_vector(96, 20);
         
         // Create test documents
         let documents = vec![
@@ -147,7 +149,7 @@ mod tests {
     #[test]
     fn test_multi_vector_factory() {
         // Create an embedding service with multi-vector support
-        let service = embedding_service::EmbeddingService::new_mock_multi_vector(96, 20);
+        let service = EmbeddingService::new_mock_multi_vector(96, 20);
         
         // Create test documents
         let documents = vec![
@@ -202,7 +204,7 @@ mod tests {
             vec![0.0, 1.0, 0.0],
         ];
         
-        let multi_vec = multi_vector::MultiVectorEmbedding::new(vectors).unwrap();
+        let multi_vec = MultiVectorEmbedding::new(vectors).unwrap();
         
         // Create a node with multi-vector embeddings
         let multi_vec_node = MemoryNode::with_multi_vector(multi_vec);

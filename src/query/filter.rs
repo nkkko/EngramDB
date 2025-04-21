@@ -241,7 +241,6 @@ impl TemporalFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use uuid::Uuid;
 
     #[test]
