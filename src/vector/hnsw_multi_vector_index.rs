@@ -397,7 +397,7 @@ impl HnswMultiVectorIndex {
 
         // Phase 1: Create a representative vector for routing
         let representative = self.create_representative_vector(query);
-        
+
         // Create a copy for search operations
         let representative_copy = representative.clone();
 
@@ -756,7 +756,7 @@ impl VectorSearchIndex for HnswMultiVectorIndex {
         // We have to return some vector, so return the representative if available
         self.nodes.get(&id).map(|node| &node.representative)
     }
-    
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

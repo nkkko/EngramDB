@@ -98,7 +98,7 @@ impl DatabaseConfig {
     pub fn set_multi_vector_config(&mut self, config: crate::vector::MultiVectorIndexConfig) {
         self.vector_index_config.multi_vector = Some(config);
     }
-    
+
     /// Sets the HNSW multi-vector configuration
     pub fn set_hnsw_multi_vector_config(&mut self, config: crate::vector::HnswMultiVectorConfig) {
         self.vector_index_config.hnsw_multi_vector = Some(config);
@@ -236,7 +236,7 @@ impl Database {
             vector_index_config: config.vector_index_config.clone(),
         }
     }
-    
+
     /// Creates a new in-memory database with HNSW-based multi-vector index (optimized for token-level embeddings)
     pub fn in_memory_with_hnsw_multi_vector() -> Self {
         let config = DatabaseConfig {
@@ -296,7 +296,7 @@ impl Database {
 
         Self::new(config)
     }
-    
+
     /// Creates a file-based database with a HNSW-based multi-vector index
     pub fn file_based_with_hnsw_multi_vector<P: AsRef<Path>>(path: P) -> Result<Self> {
         let config = DatabaseConfig {
@@ -603,7 +603,9 @@ impl Database {
                     if let Some(first_vector) = multi_vector.vectors().first() {
                         self.search_by_vector(first_vector, limit, threshold)
                     } else {
-                        Err(EngramDbError::Vector("Empty multi-vector query".to_string()))
+                        Err(EngramDbError::Vector(
+                            "Empty multi-vector query".to_string(),
+                        ))
                     }
                 }
             }
