@@ -1,6 +1,11 @@
+---
+title: "Embeddings"
+description: "Understanding how vector embeddings work in EngramDB"
+---
+
 # Embeddings in EngramDB
 
-EngramDB now includes native support for generating vector embeddings from text. This feature makes it easy to create semantic memory nodes without needing to implement external embedding generation logic.
+EngramDB includes native support for generating vector embeddings from text. This feature makes it easy to create semantic memory nodes without needing to implement external embedding generation logic.
 
 ## Getting Started with Embeddings
 
@@ -84,6 +89,52 @@ For testing or when ML dependencies aren't available, you can use mock embedding
 let embedding_service = EmbeddingService::new_mock(384);
 ```
 
+## Multi-Vector Embeddings
+
+EngramDB now supports multi-vector embeddings, inspired by models like ColBERT and ColPali:
+
+### What are Multi-Vector Embeddings?
+
+Unlike traditional embeddings that represent an entire document as a single vector, multi-vector embeddings represent a document as a collection of vectors. This approach:
+
+- Captures different aspects of the document in separate vectors
+- Enables more nuanced similarity comparisons
+- Improves precision in semantic search
+
+### Using Multi-Vector Embeddings
+
+```rust
+use engramdb::embeddings::{MultiVectorProvider, MockMultiVectorProvider};
+
+// Create a multi-vector provider (96-dimensional vectors, typically 20 per document)
+let provider = MockMultiVectorProvider::new(96, 20);
+
+// Generate multi-vector embeddings for a document
+let document = "Artificial intelligence is transforming how we interact with technology";
+let multi_vector = provider.generate_multi_vector_for_document(document, Some("AI"))?;
+
+// Generate multi-vector embeddings for a query (typically fewer vectors than for documents)
+let query = "How does AI impact technology?";
+let query_vectors = provider.generate_multi_vector_for_query(query)?;
+```
+
+### Similarity Metrics for Multi-Vectors
+
+When using multi-vector embeddings, EngramDB supports specialized similarity functions:
+
+```rust
+// Max similarity: highest similarity between any pair of vectors
+let max_sim = doc_embedding.max_similarity(&query_embedding);
+
+// Average similarity: average similarity across all vector pairs
+let avg_sim = doc_embedding.avg_similarity(&query_embedding);
+
+// Late interaction: ColBERT-style scoring that finds the most similar vector for each query vector
+let late_sim = doc_embedding.late_interaction_score(&query_embedding);
+```
+
+The late interaction score is particularly effective for retrieval tasks, as it allows different parts of the query to match different parts of the document.
+
 ## Creating Memory Nodes from Text
 
 ### Using the Database API
@@ -160,6 +211,27 @@ let query_embeddings = embedding_service.generate_for_query(
 ```
 
 This distinction follows best practices for asymmetric semantic search.
+
+### Vector Similarity Metrics
+
+EngramDB supports different similarity metrics:
+
+- **Cosine Similarity**: Measures the cosine of the angle between vectors (default)
+- **Dot Product**: Simple dot product of two vectors
+- **Euclidean Distance**: Measures the straight-line distance in the vector space
+
+You can specify which metric to use in your vector index configuration:
+
+```rust
+let config = DatabaseConfig {
+    // other configuration...
+    vector_index_config: VectorIndexConfig {
+        algorithm: VectorAlgorithm::HNSW,
+        similarity_metric: SimilarityMetric::Cosine,
+        hnsw: Some(HnswConfig::default()),
+    },
+};
+```
 
 ### Dimensions
 
@@ -257,9 +329,19 @@ To use model-based embeddings, you need the following Python packages:
 
 If these dependencies are not available, EngramDB will automatically fall back to mock embeddings.
 
+## Best Practices
+
+- **Choose the right embedding type**: Use single-vector embeddings for simple cases and multi-vector embeddings for more complex documents
+- **Select appropriate dimensions**: Larger dimensions (768-1536) capture more semantic nuance but use more memory
+- **Consider your use case**: For search, use smaller multi-vectors; for classification, single vectors often work well
+- **Normalize your vectors**: Especially important when using cosine similarity
+- **Distinguish between document and query embeddings**: This asymmetric approach often improves search results
+- **Use domain-specific models** when possible for better semantic understanding in your field
+
 ## Examples
 
 For complete examples of using embeddings with EngramDB, see:
 
 - Rust: [examples/rust/text_embeddings.rs](https://github.com/your-username/engramdb/blob/main/examples/rust/text_embeddings.rs)
 - Python: [examples/python/text_embeddings.py](https://github.com/your-username/engramdb/blob/main/examples/python/text_embeddings.py)
+- Multi-Vector: [examples/rust/multi_vector_example.rs](https://github.com/your-username/engramdb/blob/main/examples/rust/multi_vector_example.rs)

@@ -22,10 +22,16 @@ A memory node is identified by a unique UUID and includes metadata such as creat
 
 Vector embeddings are numerical representations of semantic content. In EngramDB, these embeddings enable similarity search, allowing you to find memories that are semantically related even if they don't share the same attributes.
 
-The vector index maintains these embeddings and provides efficient similarity search using cosine similarity. EngramDB now supports two vector index implementations:
+EngramDB supports two types of embeddings:
 
-- **Linear Index (default)**: Simple brute-force search, suitable for small datasets
+- **Single Vector Embeddings**: Traditional embeddings where a document is represented as a single vector
+- **Multi-Vector Embeddings**: ColBERT/ColPali-style embeddings where a document is represented as multiple vectors
+
+The vector index maintains these embeddings and provides efficient similarity search using cosine similarity. EngramDB supports multiple vector index implementations:
+
+- **Linear Index**: Simple brute-force search, suitable for small datasets
 - **HNSW Index**: Fast approximate search using Hierarchical Navigable Small World graphs, suitable for large datasets
+- **HNSW Multi-Vector Index**: Specialized index for multi-vector embeddings
 
 EngramDB also includes built-in support for generating embeddings directly from text using machine learning models. This means you can:
 
@@ -106,6 +112,29 @@ The query system provides a flexible way to search for memories based on multipl
 
 Queries can combine these different dimensions to find memories that match complex criteria.
 
+## Background Processing
+
+EngramDB includes a background processing system that performs tasks during idle periods. This "sleep-time compute" capability allows the database to autonomously organize and enrich memories.
+
+Key components of the background processing system include:
+
+- **Activity Tracker**: Monitors database usage to detect idle periods
+- **Task Manager**: Schedules, prioritizes, and executes background tasks
+- **Task Types**: Various operations the system can perform:
+  - **Summarization**: Create summaries of related memories
+  - **Connection Inference**: Discover relationships between memories
+  - **Node Enrichment**: Add additional context to memories
+  - **Query Prediction**: Anticipate future queries and pre-compute results
+
+Background tasks can be configured with various parameters:
+
+- Idle threshold (when to start processing)
+- Token usage limits
+- Cost constraints
+- Concurrency limits
+
+See the [Background Processing](/advanced-topics/background-processing) documentation for more details.
+
 ## Putting It All Together
 
 In EngramDB, these concepts work together to provide a comprehensive memory system:
@@ -116,5 +145,6 @@ In EngramDB, these concepts work together to provide a comprehensive memory syst
 4. You can create `Connection`s between nodes to form a memory graph
 5. You can update nodes over time, creating `TemporalLayer`s that track their evolution
 6. You can query the database using vector similarity, attribute filters, and temporal constraints
+7. The background processing system organizes and enriches memories during idle periods
 
-This unified approach allows for rich, multi-dimensional representation and querying of agent memories.
+This unified approach allows for rich, multi-dimensional representation and querying of agent memories, with autonomous organization capabilities.

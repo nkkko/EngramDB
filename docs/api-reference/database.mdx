@@ -315,6 +315,89 @@ if removed {
 }
 ```
 
+## Background Processing
+
+EngramDB includes a background processing system that can perform operations during idle periods:
+
+### Enabling Background Processing
+
+```rust
+// Configure background processing
+let background_config = BackgroundTaskConfig {
+    idle_threshold: 5.0,            // Seconds of inactivity before considering idle
+    max_tokens: Some(10000),        // Limit token usage
+    max_cost: Some(0.01),           // Cost limit in dollars
+    max_concurrent_tasks: 2,        // Number of concurrent tasks
+};
+
+// Enable background processing when creating the database
+let config = DatabaseConfig {
+    // Other configuration...
+    background_processing: Some(background_config),
+};
+
+let db = Database::new(config)?;
+```
+
+### Scheduling Background Tasks
+
+```rust
+// Schedule a task to summarize related memories
+let task_id = db.schedule_background_task(
+    TaskType::Summarize { 
+        node_ids: vec![node1_id, node2_id], 
+        prompt: Some("Summarize these related memories")
+    },
+    TaskPriority::Normal
+)?;
+
+// Check task status
+let status = db.get_task_status(task_id)?;
+println!("Task status: {:?}", status);
+
+// Get task result when completed
+if status == TaskStatus::Completed {
+    let result = db.get_task_result(task_id)?;
+    match result {
+        TaskResult::Summary { node_id } => {
+            // Load the summary node
+            let summary = db.load(node_id)?;
+            println!("Summary: {:?}", summary);
+        },
+        _ => println!("Other task result: {:?}", result),
+    }
+}
+```
+
+### Available Task Types
+
+EngramDB supports several types of background tasks:
+
+```rust
+// Create a summary of related memories
+TaskType::Summarize {
+    node_ids: vec![node1_id, node2_id],
+    prompt: Some("Create a concise summary"),
+}
+
+// Infer connections between memory nodes
+TaskType::InferConnections {
+    node_ids: vec![node1_id, node2_id, node3_id],
+    prompt: Some("Find relationships"),
+}
+
+// Enrich a memory node with additional context
+TaskType::EnrichNode {
+    node_id: node_id,
+    prompt: Some("Add context about locations"),
+}
+
+// Predict and pre-compute likely future queries
+TaskType::PredictQueries {
+    recent_queries: Some(vec!["What did I learn?".to_string()]),
+}
+```
+
 ## Error Handling
 
 The database operations return a `Result` type that can contain various error types:
@@ -326,6 +409,7 @@ pub enum EngramDbError {
     Vector(String),
     Serialization(String),
     Validation(String),
+    Background(String),
     Other(String),
 }
 ```

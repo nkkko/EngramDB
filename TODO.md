@@ -42,31 +42,41 @@ This document outlines planned improvements to the EngramDB database system, ins
 
 ### 0. Sleep-time Compute Implementation
 
-- [ ] [P0] Implement background processing system for sleep-time compute
-  - [ ] Create background task management system with task queues
-  - [ ] Implement idle detection mechanism to trigger background processing
-  - [ ] Design LLM interface for sleep-time compute operations
-  - [ ] Add resource management for controlling compute usage
+- [x] [P0] Implement background processing system for sleep-time compute (2025-04-22)
+  - [x] Create background task management system with task queues (2025-04-22)
+  - [x] Implement idle detection mechanism to trigger background processing (2025-04-22)
+  - [x] Design LLM interface for sleep-time compute operations (2025-04-22)
+  - [x] Add resource management for controlling compute usage (2025-04-22)
 
-- [ ] [P1] Add sleep-compute operations
-  - [ ] Implement `Database::summarize_nodes()` for creating summaries of node clusters
-  - [ ] Implement `Database::infer_connections()` for discovering relationships between nodes
-  - [ ] Implement `Database::enrich_node()` for adding additional context to existing nodes
-  - [ ] Implement `Database::predict_queries()` for pre-computing anticipated queries
+- [x] [P1] Add sleep-compute operations (2025-04-22)
+  - [x] Implement `Database::summarize_nodes()` for creating summaries of node clusters (2025-04-22)
+  - [x] Implement `Database::infer_connections()` for discovering relationships between nodes (2025-04-22)
+  - [x] Implement `Database::enrich_node()` for adding additional context to existing nodes (2025-04-22)
+  - [x] Implement `Database::predict_queries()` for pre-computing anticipated queries (2025-04-22)
 
-- [ ] [P1] Extend memory node architecture for sleep-compute results
-  - [ ] Add new node types (Summary, Inference) for storing computation results
-  - [ ] Add source node tracking for derived nodes
-  - [ ] Add metadata for sleep-compute operations
+- [x] [P1] Extend memory node architecture for sleep-compute results (2025-04-22)
+  - [x] Add new node types (Summary, Inference) for storing computation results (2025-04-22)
+  - [x] Add source node tracking for derived nodes (2025-04-22)
+  - [x] Add metadata for sleep-compute operations (2025-04-22)
 
-- [ ] [P1] Implement trigger mechanisms for background processing
-  - [ ] Create idle timer trigger for periods of inactivity
+- [x] [P1] Implement trigger mechanisms for background processing (2025-04-22)
+  - [x] Create idle timer trigger for periods of inactivity (2025-04-22)
   - [ ] Add access pattern analysis for predictive triggering
-  - [ ] Add explicit API for requesting background tasks
+  - [x] Add explicit API for requesting background tasks (2025-04-22)
 
 - [ ] [P2] Optimize query system for sleep-compute results
   - [ ] Extend QueryBuilder to prioritize summary/inference nodes
   - [ ] Add configuration for preferring pre-computed results
+
+- [ ] [P1] Implement advanced temporal layer management with sleep-compute
+  - [ ] Add `Database::consolidate_history()` to create summaries of memory evolution
+  - [ ] Add `Database::prune_temporal_layers()` to reduce storage based on importance
+  - [ ] Add `Database::identify_significant_changes()` to flag key temporal moments
+
+- [ ] [P1] Implement vector index optimizations with sleep-compute
+  - [ ] Add `Database::reoptimize_hnsw_graph()` based on observed query patterns
+  - [ ] Add `Database::generate_hierarchical_embeddings()` for node clusters
+  - [ ] Add `Database::check_embedding_consistency()` to identify outliers
 
 ### 1. Core Engine & ACID Properties
 
@@ -86,14 +96,18 @@ This document outlines planned improvements to the EngramDB database system, ins
   - [x] [P0] Fix HNSW implementation to handle thread-safety requirements (2025-04-15)
   - [x] [P0] Optimize borrowing patterns in HNSW similarity search (2025-04-15)
 - [x] [P1] Document HNSW implementation and usage in API reference (2025-04-11)
-- [ ] [P1] Implement native multi-vector support without flattening
-  - [ ] Support ColBERT/ColPali-style multi-vector representations
-  - [ ] Optimize retrieval techniques for multi-vector models
+- [x] [P1] Implement native multi-vector support without flattening (2025-04-22)
+  - [x] Support ColBERT/ColPali-style multi-vector representations (2025-04-22)
+  - [x] Optimize retrieval techniques for multi-vector models (2025-04-22)
   - [ ] Implement efficient storage patterns for sparse vectors
 - [ ] [P1] Optimize memory usage in vector indices with deduplication and shared references
 - [ ] [P2] Add IVF (Inverted File Index) support for large-scale vector collections
 - [ ] [P2] Create product quantization for memory-efficient storage of vectors
 - [ ] [P1] Add hybrid indexing that combines exact and approximate methods
+- [ ] [P1] Implement sharding support for distributed vector search
+  - [ ] Create query router for distributed search
+  - [ ] Implement shard key strategies for vector data
+  - [ ] Design cross-shard search result merging
 
 ### 3. Thread Safety & Concurrency
 
@@ -120,6 +134,7 @@ This document outlines planned improvements to the EngramDB database system, ins
   - [ ] Create diversity-based retrieval (MMR) for balanced results
   - [ ] Add configurable scoring parameters for domain-specific tuning
   - [ ] Implement query expansion and refinement techniques
+  - [ ] Integrate with background processing for query result caching
 
 ### 5. Semantic Graph Enhancements
 
@@ -274,28 +289,38 @@ This document outlines planned improvements to the EngramDB database system, ins
 
 ## Implementation Phases
 
-### Phase 1 (Immediate)
+### Phase 1 (Immediate) ✅
 - Critical engine improvements:
-  - Fix thread safety and concurrency issues
-  - Implement first-class hybrid search capabilities  
-  - Optimize core implementation for performance
-  - Implement native multi-vector support
+  - Fix thread safety and concurrency issues ✅
+  - Implement background processing for sleep-time compute ✅
+  - Optimize core implementation for performance ✅
+  - Implement native multi-vector support ✅
 
-### Phase 2 (Near-term)
+### Phase 2 (Near-term, Current Focus)
 - Advanced features:
   - Enhance graph capabilities with rich connections
-  - Implement temporal memory management
+  - Implement first-class hybrid search capabilities
   - Add advanced relevance scoring framework
   - Improve Python and TypeScript SDKs
-  - Create agent integration framework
+  - Integrate background processing with query system
+  - Add predictive triggers for background tasks
 
 ### Phase 3 (Medium-term)
-- Ecosystem expansion:
+- Ecosystem expansion & Scalability:
+  - Implement sharding for distributed vector search
   - Build multimodal support
   - Implement extensibility points
   - Create developer-friendly tools
   - Add advanced performance optimizations
   - Build integrations with popular frameworks
+
+### Phase 4 (Long-term, Future Innovation)
+- Cognitive Memory Features:
+  - Implement Neural Memory Architecture
+  - Add affective memory contextualization
+  - Create distributed cognitive memory network
+  - Build counterfactual reasoning engine
+  - Develop autonomous memory optimization
 
 ## Completed Items
 
@@ -318,6 +343,11 @@ This document outlines planned improvements to the EngramDB database system, ins
   - [x] Configure multi-platform testing (Linux, macOS, Windows) (2025-04-21)
   - [x] Set up code coverage reporting and monitoring (2025-04-21)
   - [x] Add comprehensive integration tests (2025-04-21)
+- [x] [P0] Implement background processing system for sleep-time compute (2025-04-22)
+  - [x] Create background task management system with task queues (2025-04-22)
+  - [x] Implement idle detection mechanism to trigger background processing (2025-04-22)
+  - [x] Design LLM interface for sleep-time compute operations (2025-04-22)
+  - [x] Add resource management for controlling compute usage (2025-04-22)
 - [x] [P1] Implement basic graph connections between memory nodes (2023-04-05)
 - [x] [P1] Implement PyO3 bindings for core EngramDB functionality (2025-04-01)
 - [x] [P1] Create Pythonic wrapper classes for MemoryNode and Database (2025-04-01)
@@ -341,6 +371,21 @@ This document outlines planned improvements to the EngramDB database system, ins
   - [x] Create property-based tests for vector search correctness (2025-04-21)
   - [x] Add regression tests for previous bugs (2025-04-21)
   - [x] Create cross-component integration tests (2025-04-21)
+- [x] [P1] Add sleep-compute operations (2025-04-22)
+  - [x] Implement `Database::summarize_nodes()` for creating summaries of node clusters (2025-04-22)
+  - [x] Implement `Database::infer_connections()` for discovering relationships between nodes (2025-04-22)
+  - [x] Implement `Database::enrich_node()` for adding additional context to existing nodes (2025-04-22)
+  - [x] Implement `Database::predict_queries()` for pre-computing anticipated queries (2025-04-22)
+- [x] [P1] Extend memory node architecture for sleep-compute results (2025-04-22)
+  - [x] Add new node types (Summary, Inference) for storing computation results (2025-04-22)
+  - [x] Add source node tracking for derived nodes (2025-04-22)
+  - [x] Add metadata for sleep-compute operations (2025-04-22)
+- [x] [P1] Implement trigger mechanisms for background processing (2025-04-22)
+  - [x] Create idle timer trigger for periods of inactivity (2025-04-22)
+  - [x] Add explicit API for requesting background tasks (2025-04-22)
+- [x] [P1] Implement native multi-vector support without flattening (2025-04-22)
+  - [x] Support ColBERT/ColPali-style multi-vector representations (2025-04-22)
+  - [x] Optimize retrieval techniques for multi-vector models (2025-04-22)
 - [x] [P2] Implement helper functions for generating embeddings from text (2025-04-09)
 - [x] [P2] Add support for multiple embedding models (2025-04-09)
 - [x] [P2] Develop testing documentation (2025-04-21)

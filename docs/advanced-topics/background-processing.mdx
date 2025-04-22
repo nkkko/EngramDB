@@ -1,0 +1,159 @@
+---
+title: "Background Processing"
+description: "Understand EngramDB's background processing capabilities for sleep-time compute"
+---
+
+# Background Processing
+
+EngramDB includes a sophisticated background processing system that enables powerful "sleep-time compute" operations. This system allows the database to autonomously perform memory organization, enrichment, and optimization during idle periods.
+
+## Core Concepts
+
+Background processing in EngramDB is built around a few key concepts:
+
+### Activity Tracking
+
+The `ActivityTracker` monitors database usage to detect idle periods when background tasks can be run without impacting performance:
+
+```rust
+let tracker = ActivityTracker::new();
+
+// Record when the database is used
+tracker.record_activity();
+
+// Check if the system is idle
+if tracker.is_idle(Duration::from_secs(5)) {
+    // Run background tasks
+}
+```
+
+### Task Management
+
+The `BackgroundTaskManager` handles scheduling, prioritization, and execution of background tasks:
+
+```rust
+// Configure the background task system
+let config = BackgroundTaskConfig {
+    idle_threshold: 10.0,            // Seconds of inactivity before considering system idle
+    max_tokens: Some(10000),         // Limit token usage for background tasks
+    max_cost: Some(0.01),            // Maximum cost (in dollars) for background tasks
+    max_concurrent_tasks: 2,         // Number of tasks to run concurrently
+};
+
+let task_manager = BackgroundTaskManager::new(config);
+
+// Schedule a background task
+let task_id = task_manager.schedule_task(
+    TaskType::Summarize { 
+        node_ids: vec![node1_id, node2_id], 
+        prompt: Some("Summarize these related memories") 
+    },
+    TaskPriority::Normal
+);
+
+// Check task status
+let status = task_manager.get_task_status(task_id).unwrap();
+```
+
+### Trigger Types
+
+Tasks can be triggered in several ways:
+
+- **IdleTrigger**: Runs tasks when the system has been idle for a specified period
+- **PredictiveTrigger**: Anticipates future queries based on past usage patterns
+
+## Task Types
+
+EngramDB supports several types of background tasks:
+
+### Summarization
+
+Automatically generates summaries of related memory nodes:
+
+```rust
+TaskType::Summarize {
+    node_ids: vec![node1_id, node2_id, node3_id],
+    prompt: Some("Create a concise summary of these related experiences")
+}
+```
+
+The result is a new memory node that contains the summary content.
+
+### Connection Inference
+
+Intelligently discovers relationships between memory nodes:
+
+```rust
+TaskType::InferConnections {
+    node_ids: vec![node1_id, node2_id, node3_id],
+    prompt: Some("Identify potential connections between these memories")
+}
+```
+
+This creates new `Connection` objects between related nodes.
+
+### Node Enrichment
+
+Enhances existing memory nodes with additional context:
+
+```rust
+TaskType::EnrichNode {
+    node_id: node_id,
+    prompt: Some("Add additional context about locations mentioned")
+}
+```
+
+### Query Prediction
+
+Anticipates likely future queries and pre-computes results:
+
+```rust
+TaskType::PredictQueries {
+    recent_queries: Some(vec!["What did I learn about databases?".to_string()])
+}
+```
+
+## LLM Integration
+
+The `LLMProcessor` component integrates with large language models to perform sophisticated processing tasks:
+
+```rust
+let llm_processor = LLMProcessor::new(config);
+
+// Process a task using the LLM
+let result = llm_processor.process_task(&task);
+```
+
+## Configuration
+
+Background processing can be configured to match your system's resources and requirements:
+
+```rust
+// Default configuration
+let default_config = BackgroundTaskConfig::default();
+
+// Custom configuration
+let custom_config = BackgroundTaskConfig {
+    idle_threshold: 5.0,               // Seconds
+    max_tokens: Some(50000),           // Token limit
+    max_cost: Some(0.05),              // Cost limit
+    max_concurrent_tasks: 4,           // Concurrent tasks
+};
+```
+
+## Benefits of Background Processing
+
+Background processing delivers several advantages:
+
+1. **Knowledge Organization**: Automatically organize and structure information
+2. **Memory Consolidation**: Generate higher-level insights from individual memories
+3. **Efficiency**: Optimize database structure during idle periods
+4. **Query Performance**: Pre-compute likely query results
+5. **Context Enhancement**: Enrich memories with additional information
+
+## Best Practices
+
+- Configure idle thresholds based on your application's usage patterns
+- Set appropriate token and cost limits to control resource usage
+- Use task priorities to ensure the most important processing happens first
+- Consider providing custom prompts for more targeted background processing
